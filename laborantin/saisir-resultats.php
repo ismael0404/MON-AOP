@@ -72,6 +72,14 @@ $s=$pdo->query("SELECT COUNT(*) FROM examens WHERE statut='en_attente' AND prior
     <a class="nav-item" href="examens-en-attente.php"><span class="material-icons">pending_actions</span> Examens en attente</a>
     <a class="nav-item active" href="saisir-resultats.php"><span class="material-icons">science</span> Saisir résultats</a>
     <a class="nav-item" href="resultat_transmis.php"><span class="material-icons">check_circle</span> Résultats transmis</a>
+  
+    <div class="nav-section-title">Communication</div>
+    <a class="nav-item" href="../notifications/index.php">
+      <span class="material-icons">notifications</span> Notifications
+    </a>
+    <a class="nav-item" href="../modules/messages/index.php">
+      <span class="material-icons">chat</span> Messagerie
+    </a>
   </nav>
   <div class="sidebar-footer"><a class="nav-item" href="../auth/logout.php"><span class="material-icons">logout</span> Déconnexion</a></div>
 </aside>

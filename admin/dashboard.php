@@ -216,6 +216,17 @@ $roleLabels = [
     <a class="nav-item" href="facturation.php">
       <span class="material-icons">receipt_long</span> Facturation
     </a>
+    
+    <div class="nav-section-title">Communication & Finances</div>
+    <a class="nav-item" href="../notifications/index.php">
+      <span class="material-icons">notifications</span> Notifications
+    </a>
+    <a class="nav-item" href="../modules/messages/index.php">
+      <span class="material-icons">chat</span> Messagerie
+    </a>
+    <a class="nav-item" href="../modules/paiements/index.php">
+      <span class="material-icons">payments</span> Paiements
+    </a>
     <div class="nav-section-title">Système</div>
     <a class="nav-item" href="rapports.php">
       <span class="material-icons">bar_chart</span> Rapports
@@ -636,10 +647,6 @@ document.getElementById('calNext').addEventListener('click', () => {
   calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar();
 });
 renderCalendar();
-
-// ── Init Notifications & Messages ──
-KlinikNotifications.init();
-KlinikMessages.init();
 </script>
 </body>
 </html>

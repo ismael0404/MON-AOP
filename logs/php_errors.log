@@ -1,0 +1,25 @@
+[02-May-2026 14:34:20 Europe/Berlin] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'f.montant' in 'field list' in C:\xampp\htdocs\MON AOP\modules\paiements\index.php:53
+Stack trace:
+#0 C:\xampp\htdocs\MON AOP\modules\paiements\index.php(53): PDO->prepare('\n  SELECT p.*, ...')
+#1 {main}
+  thrown in C:\xampp\htdocs\MON AOP\modules\paiements\index.php on line 53
+[02-May-2026 14:36:04 Europe/Berlin] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'operateur' in 'field list' in C:\xampp\htdocs\MON AOP\modules\paiements\index.php:87
+Stack trace:
+#0 C:\xampp\htdocs\MON AOP\modules\paiements\index.php(87): PDO->prepare('SELECT operateu...')
+#1 {main}
+  thrown in C:\xampp\htdocs\MON AOP\modules\paiements\index.php on line 87
+[02-May-2026 14:36:09 Europe/Berlin] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'operateur' in 'field list' in C:\xampp\htdocs\MON AOP\modules\paiements\index.php:87
+Stack trace:
+#0 C:\xampp\htdocs\MON AOP\modules\paiements\index.php(87): PDO->prepare('SELECT operateu...')
+#1 {main}
+  thrown in C:\xampp\htdocs\MON AOP\modules\paiements\index.php on line 87
+[02-May-2026 14:36:09 Europe/Berlin] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'operateur' in 'field list' in C:\xampp\htdocs\MON AOP\modules\paiements\index.php:87
+Stack trace:
+#0 C:\xampp\htdocs\MON AOP\modules\paiements\index.php(87): PDO->prepare('SELECT operateu...')
+#1 {main}
+  thrown in C:\xampp\htdocs\MON AOP\modules\paiements\index.php on line 87
+[02-May-2026 14:36:10 Europe/Berlin] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'operateur' in 'field list' in C:\xampp\htdocs\MON AOP\modules\paiements\index.php:87
+Stack trace:
+#0 C:\xampp\htdocs\MON AOP\modules\paiements\index.php(87): PDO->prepare('SELECT operateu...')
+#1 {main}
+  thrown in C:\xampp\htdocs\MON AOP\modules\paiements\index.php on line 87

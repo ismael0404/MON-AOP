@@ -115,6 +115,17 @@ $pts=$pdo->query("SELECT p.id,u.nom,u.prenom FROM patients p JOIN utilisateurs u
     <a class="nav-item" href="paiements_recus.php"><span class="material-icons">check_circle</span> Paiements reçus</a>
     <div class="nav-section-title">Rapports</div>
     <a class="nav-item" href="rapports.php"><span class="material-icons">bar_chart</span> Rapport</a>
+  
+    <div class="nav-section-title">Communication & Finances</div>
+    <a class="nav-item" href="../notifications/index.php">
+      <span class="material-icons">notifications</span> Notifications
+    </a>
+    <a class="nav-item" href="../modules/messages/index.php">
+      <span class="material-icons">chat</span> Messagerie
+    </a>
+    <a class="nav-item" href="../modules/paiements/index.php">
+      <span class="material-icons">payments</span> Paiements
+    </a>
   </nav>
   <div class="sidebar-footer"><a class="nav-item" href="../auth/logout.php"><span class="material-icons">logout</span> Déconnexion</a></div>
 </aside>
@@ -307,10 +318,6 @@ new Chart(document.getElementById('chartModes').getContext('2d'),{
   type:'doughnut',data:{labels:['Espèces','Carte','Mobile Money','Chèque'],datasets:[{data:[<?=$nbEspeces?>,<?=$nbCarte?>,<?=$nbMobile?>,<?=$nbCheque?>],backgroundColor:['#2563eb','#0891b2','#059669','#d97706'],borderWidth:0}]},
   options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}}},cutout:'58%'}
 });
-
-// ── Init Notifications & Messages ──
-KlinikNotifications.init();
-KlinikMessages.init();
 </script>
 </body>
 </html>

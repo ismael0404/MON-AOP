@@ -154,6 +154,17 @@ $meds=$pdo->query("SELECT m.id,u.nom,u.prenom,m.specialite FROM medecins m JOIN 
     <a class="nav-item" href="mon-dossier.php"><span class="material-icons">folder_shared</span> Mon dossier médical</a>
     <a class="nav-item" href="mes-examens.php"><span class="material-icons">science</span> Mes examens</a>
     <a class="nav-item" href="mes-factures.php"><span class="material-icons">receipt_long</span> Mes factures</a>
+  
+    <div class="nav-section-title">Communication & Finances</div>
+    <a class="nav-item" href="../notifications/index.php">
+      <span class="material-icons">notifications</span> Notifications
+    </a>
+    <a class="nav-item" href="../modules/messages/index.php">
+      <span class="material-icons">chat</span> Messagerie
+    </a>
+    <a class="nav-item" href="../modules/paiements/index.php">
+      <span class="material-icons">payments</span> Paiements
+    </a>
   </nav>
   <div class="sidebar-footer">
     <a class="nav-item" href="../auth/logout.php"><span class="material-icons">logout</span> Déconnexion</a>
@@ -367,10 +378,6 @@ function saveRDV(){
     else{alertEl.textContent=data.message;alertEl.classList.add('show','alert-error');btn.disabled=false;btn.innerHTML='<span class="material-icons">event</span> Confirmer';}
   });
 }
-
-// ── Init Notifications & Messages ──
-KlinikNotifications.init();
-KlinikMessages.init();
 </script>
 </body>
 </html>

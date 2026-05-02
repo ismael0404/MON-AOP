@@ -55,6 +55,14 @@ $s=$pdo->prepare("SELECT COUNT(*) FROM examens e JOIN consultations c ON e.consu
     <a class="nav-item" href="dossiers.php"><span class="material-icons">folder_shared</span> Dossiers patients</a>
     <a class="nav-item active" href="examens.php"><span class="material-icons">science</span> Examens</a>
     <a class="nav-item" href="ordonnances.php"><span class="material-icons">description</span> Ordonnances</a>
+  
+    <div class="nav-section-title">Communication</div>
+    <a class="nav-item" href="../notifications/index.php">
+      <span class="material-icons">notifications</span> Notifications
+    </a>
+    <a class="nav-item" href="../modules/messages/index.php">
+      <span class="material-icons">chat</span> Messagerie
+    </a>
   </nav>
   <div class="sidebar-footer"><a class="nav-item" href="../auth/logout.php"><span class="material-icons">logout</span> Déconnexion</a></div>
 </aside>

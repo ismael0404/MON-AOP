@@ -76,6 +76,17 @@ $pts=$pdo->query("SELECT p.id,u.nom,u.prenom FROM patients p JOIN utilisateurs u
     <a class="nav-item" href="paiements_recus.php"><span class="material-icons">check_circle</span> Paiements reçus</a>
     <div class="nav-section-title">Rapports</div>
     <a class="nav-item" href="rapports.php"><span class="material-icons">bar_chart</span> Rapport</a>
+  
+    <div class="nav-section-title">Communication & Finances</div>
+    <a class="nav-item" href="../notifications/index.php">
+      <span class="material-icons">notifications</span> Notifications
+    </a>
+    <a class="nav-item" href="../modules/messages/index.php">
+      <span class="material-icons">chat</span> Messagerie
+    </a>
+    <a class="nav-item" href="../modules/paiements/index.php">
+      <span class="material-icons">payments</span> Paiements
+    </a>
   </nav>
   <div class="sidebar-footer"><a class="nav-item" href="../auth/logout.php"><span class="material-icons">logout</span> Déconnexion</a></div>
 </aside>

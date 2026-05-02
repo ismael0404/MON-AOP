@@ -114,6 +114,14 @@ $types=$pdo->query("SELECT type_examen,COUNT(*) as nb FROM examens GROUP BY type
     <a class="nav-item" href="saisir-resultats.php"><span class="material-icons">science</span> Saisir résultats</a>
     <a class="nav-item" href="resultat_transmis.php"><span class="material-icons">check_circle</span> Résultats transmis</a>
     <a class="nav-item" href="#"><span class="material-icons">inventory</span> Stock réactifs</a>
+  
+    <div class="nav-section-title">Communication</div>
+    <a class="nav-item" href="../notifications/index.php">
+      <span class="material-icons">notifications</span> Notifications
+    </a>
+    <a class="nav-item" href="../modules/messages/index.php">
+      <span class="material-icons">chat</span> Messagerie
+    </a>
   </nav>
   <div class="sidebar-footer"><a class="nav-item" href="../auth/logout.php"><span class="material-icons">logout</span> Déconnexion</a></div>
 </aside>
@@ -293,10 +301,6 @@ if(typesData.length>0){
     options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:8}}},cutout:'55%'}
   });
 }
-
-// ── Init Notifications & Messages ──
-KlinikNotifications.init();
-KlinikMessages.init();
 </script>
 </body>
 </html>

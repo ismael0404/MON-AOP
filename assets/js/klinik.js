@@ -1,256 +1,305 @@
 /* ═══════════════════════════════════════
-   KLINIK — Utilitaires JavaScript
-   Notifications polling + Messagerie + UI
+   KLINIK — JS Global (Auto-init)
 ═══════════════════════════════════════ */
 
 const KlinikUI = {
-
   showAlert(container, message, type = 'error') {
     const icons = { success: 'check_circle', error: 'error', warning: 'warning' };
-    container.innerHTML = `
-      <div class="alert alert-${type}">
-        <span class="material-icons">${icons[type]}</span>
-        ${message}
-      </div>`;
+    container.innerHTML = `<div class="alert alert-${type}"><span class="material-icons">${icons[type]}</span>${message}</div>`;
     setTimeout(() => container.innerHTML = '', 4000);
   },
-
   setLoading(btn, loading) {
-    if (loading) {
-      btn.dataset.originalText = btn.innerHTML;
-      btn.innerHTML = '<span class="material-icons" style="animation:spin .7s linear infinite;display:inline-block">sync</span> Chargement...';
-      btn.disabled = true;
-    } else {
-      btn.innerHTML = btn.dataset.originalText;
-      btn.disabled = false;
-    }
+    if (loading) { btn.dataset.originalText = btn.innerHTML; btn.innerHTML = '<span class="material-icons" style="animation:spin .7s linear infinite;display:inline-block">sync</span> Chargement...'; btn.disabled = true; }
+    else { btn.innerHTML = btn.dataset.originalText; btn.disabled = false; }
   },
-
-  formatDate(dateStr) {
-    if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
-      day: '2-digit', month: '2-digit', year: 'numeric'
-    });
-  },
-
+  formatDate(dateStr) { if (!dateStr) return '—'; return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }); },
   initSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const toggle  = document.getElementById('sidebarToggle');
-    if (toggle && sidebar) {
-      toggle.addEventListener('click', () => sidebar.classList.toggle('open'));
-    }
-    // Mark active nav item
-    const currentPath = window.location.pathname.split('/').pop();
-    document.querySelectorAll('.nav-item[href]').forEach(link => {
-      const linkPath = link.getAttribute('href')?.split('/').pop();
-      if (linkPath === currentPath) {
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        link.classList.add('active');
-      }
-    });
+    const sidebar = document.getElementById('sidebar'), toggle = document.getElementById('sidebarToggle');
+    if (toggle && sidebar) toggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+    const cur = window.location.pathname.split('/').pop();
+    document.querySelectorAll('.nav-item[href]').forEach(link => { if (link.getAttribute('href')?.split('/').pop() === cur) { document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); link.classList.add('active'); } });
   },
-
   fillUserInfo(user) {
-    const nameEl  = document.getElementById('sidebarUserName');
-    const emailEl = document.getElementById('sidebarUserEmail');
-    const initEl  = document.getElementById('topbarAvatar');
-    if (nameEl)  nameEl.textContent  = `${user.prenom} ${user.nom}`;
-    if (emailEl) emailEl.textContent = user.email;
-    if (initEl)  initEl.textContent  = ((user.prenom?.[0]||'')+(user.nom?.[0]||'')).toUpperCase();
+    const n = document.getElementById('sidebarUserName'), e = document.getElementById('sidebarUserEmail'), a = document.getElementById('topbarAvatar');
+    if (n) n.textContent = `${user.prenom} ${user.nom}`;
+    if (e) e.textContent = user.email;
+    if (a) a.textContent = ((user.prenom?.[0]||'')+(user.nom?.[0]||'')).toUpperCase();
   }
 };
 
-/* ── Validation ── */
 const KlinikValidate = {
-  email(val)     { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val); },
-  phone(val)     { return /^[\d\s+\-().]{8,15}$/.test(val); },
-  required(val)  { return val && val.trim().length > 0; },
-  minLen(val, n) { return val && val.trim().length >= n; },
-  highlightField(input, valid) {
-    input.classList.toggle('error', !valid);
-    return valid;
-  }
+  email(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); },
+  phone(v) { return /^[\d\s+\-().]{8,15}$/.test(v); },
+  required(v) { return v && v.trim().length > 0; },
+  minLen(v, n) { return v && v.trim().length >= n; },
+  highlightField(input, valid) { input.classList.toggle('error', !valid); return valid; }
 };
 
-/* ── Notifications Polling ── */
+/* ── Helper: detect base path to /api/ ── */
+function _klinikApiBase() {
+  const p = window.location.pathname;
+  const parts = p.split('/');
+  // Find the role folder (admin, medecin, patient, laborantin, caissier)
+  const roles = ['admin','medecin','patient','laborantin','caissier'];
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (roles.includes(parts[i])) {
+      return parts.slice(0, i).join('/') + '/api/';
+    }
+  }
+  return '../api/';
+}
+const KLINIK_API = _klinikApiBase();
+
+/* ══════════════════════════════════════
+   NOTIFICATIONS — Auto-init system
+══════════════════════════════════════ */
 const KlinikNotifications = {
-  _interval: null,
-  _badgeEl: null,
-  _dropdownEl: null,
+  _interval: null, _badgeEl: null, _btnEl: null, _dropdownEl: null,
 
-  init(options = {}) {
-    const pollInterval = options.interval || 30000; // 30 secondes
-    this._badgeEl = document.querySelector('.notif-badge');
-    this._dropdownEl = document.getElementById('notifDropdown');
+  init() {
+    // Find the notification button by icon content
+    this._btnEl = this._findIconBtn('notifications');
+    if (!this._btnEl) return;
+    this._btnEl.style.position = 'relative';
+    this._btnEl.style.cursor = 'pointer';
 
-    // Premier fetch immédiat
-    this.fetchCount();
-    // Polling
-    this._interval = setInterval(() => this.fetchCount(), pollInterval);
-
-    // Clic sur l'icône
-    const notifBtn = document.querySelector('.topbar-icon-btn');
-    if (notifBtn) {
-      notifBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.toggleDropdown();
-      });
-    }
-
-    // Fermer dropdown au clic dehors
-    document.addEventListener('click', () => this.closeDropdown());
-  },
-
-  async fetchCount() {
-    try {
-      const res = await fetch('../api/notifications.php?action=count');
-      const data = await res.json();
-      if (data.success) {
-        this.updateBadge(data.count);
-      }
-    } catch (e) { /* silencieux */ }
-  },
-
-  updateBadge(count) {
-    if (!this._badgeEl) return;
-    if (count > 0) {
-      this._badgeEl.textContent = count > 99 ? '99+' : count;
-      this._badgeEl.style.display = 'flex';
-    } else {
+    // Ensure badge exists
+    this._badgeEl = this._btnEl.querySelector('.notif-badge');
+    if (!this._badgeEl) {
+      this._badgeEl = document.createElement('span');
+      this._badgeEl.className = 'notif-badge';
       this._badgeEl.style.display = 'none';
+      this._btnEl.appendChild(this._badgeEl);
     }
+    this._badgeEl.style.display = 'none';
+
+    // Create dropdown
+    this._createDropdown();
+
+    // Click handler
+    this._btnEl.addEventListener('click', (e) => { e.stopPropagation(); this._toggleDropdown(); });
+    document.addEventListener('click', () => this._closeDropdown());
+
+    // Start polling
+    this.fetchCount();
+    this._interval = setInterval(() => this.fetchCount(), 5000);
   },
 
-  async toggleDropdown() {
-    if (!this._dropdownEl) {
-      this.createDropdown();
+  _findIconBtn(iconName) {
+    const icons = document.querySelectorAll('.topbar-icon-btn .material-icons');
+    for (const ic of icons) {
+      if (ic.textContent.trim() === iconName) return ic.closest('.topbar-icon-btn');
     }
-    const isOpen = this._dropdownEl.classList.toggle('open');
-    if (isOpen) {
-      await this.fetchNotifications();
-    }
+    return null;
   },
 
-  closeDropdown() {
-    if (this._dropdownEl) this._dropdownEl.classList.remove('open');
-  },
-
-  createDropdown() {
+  _createDropdown() {
     const dd = document.createElement('div');
-    dd.id = 'notifDropdown';
-    dd.className = 'notif-dropdown';
-    dd.innerHTML = '<div class="notif-dropdown-header"><span>Notifications</span><button onclick="KlinikNotifications.markAllRead()">Tout lire</button></div><div class="notif-dropdown-body"><p style="padding:20px;text-align:center;color:#9ca3af;font-size:.85rem">Chargement...</p></div>';
+    dd.className = 'klinik-notif-dropdown';
+    dd.innerHTML = '<div class="knd-header"><span>Notifications</span><button class="knd-mark-all">Tout marquer lu</button></div><div class="knd-body"><p class="knd-empty">Chargement...</p></div>';
     dd.addEventListener('click', e => e.stopPropagation());
-    const parent = document.querySelector('.topbar-icon-btn');
-    if (parent) parent.style.position = 'relative';
-    parent?.appendChild(dd);
+    dd.querySelector('.knd-mark-all').addEventListener('click', () => this._markAllRead());
+    this._btnEl.appendChild(dd);
     this._dropdownEl = dd;
   },
 
-  async fetchNotifications() {
+  async fetchCount() {
     try {
-      const res = await fetch('../api/notifications.php?action=fetch');
-      const data = await res.json();
-      if (data.success && this._dropdownEl) {
-        const body = this._dropdownEl.querySelector('.notif-dropdown-body');
-        if (!data.notifications || data.notifications.length === 0) {
-          body.innerHTML = '<p style="padding:20px;text-align:center;color:#9ca3af;font-size:.85rem">Aucune notification</p>';
-          return;
-        }
-        body.innerHTML = data.notifications.slice(0, 8).map(n => {
-          const typeColors = { info: '#2563eb', success: '#059669', warning: '#d97706', danger: '#dc2626' };
-          const icons = { info: 'info', success: 'check_circle', warning: 'warning', danger: 'error' };
-          const ago = this.timeAgo(n.created_at);
-          return `<div class="notif-item${n.lue ? '' : ' unread'}" onclick="KlinikNotifications.markRead(${n.id})">
-            <div class="notif-icon" style="color:${typeColors[n.type]||'#2563eb'}"><span class="material-icons">${icons[n.type]||'info'}</span></div>
-            <div class="notif-content"><div class="notif-title">${this.escHtml(n.titre)}</div><div class="notif-msg">${this.escHtml(n.message)}</div><div class="notif-time">${ago}</div></div>
-          </div>`;
-        }).join('');
+      const r = await fetch(KLINIK_API + 'notifications.php?action=count');
+      const d = await r.json();
+      if (d.success) this._updateBadge(d.count);
+    } catch(e) {}
+  },
+
+  _updateBadge(count) {
+    if (!this._badgeEl) return;
+    if (count > 0) { this._badgeEl.textContent = count > 99 ? '99+' : count; this._badgeEl.style.display = 'flex'; }
+    else { this._badgeEl.style.display = 'none'; }
+  },
+
+  async _toggleDropdown() {
+    if (!this._dropdownEl) return;
+    const open = this._dropdownEl.classList.toggle('open');
+    // Close messages dropdown if open
+    if (KlinikMessages._dropdownEl) KlinikMessages._dropdownEl.classList.remove('open');
+    if (open) await this._fetchList();
+  },
+
+  _closeDropdown() { if (this._dropdownEl) this._dropdownEl.classList.remove('open'); },
+
+  async _fetchList() {
+    try {
+      const r = await fetch(KLINIK_API + 'notifications.php?action=fetch');
+      const d = await r.json();
+      const body = this._dropdownEl.querySelector('.knd-body');
+      if (!d.success || !d.notifications || d.notifications.length === 0) {
+        body.innerHTML = '<p class="knd-empty">Aucune notification</p>'; return;
       }
-    } catch (e) { /* silencieux */ }
-  },
-
-  async markRead(id) {
-    try {
-      await fetch('../api/notifications.php', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'markRead', id })
+      body.innerHTML = d.notifications.slice(0, 10).map(n => {
+        const colors = { info:'#2563eb', success:'#059669', warning:'#d97706', danger:'#dc2626' };
+        const icons = { info:'info', success:'check_circle', warning:'warning', danger:'error' };
+        return `<div class="knd-item${n.lue?'':' unread'}" data-id="${n.id}">
+          <div class="knd-icon" style="color:${colors[n.type]||'#2563eb'}"><span class="material-icons">${icons[n.type]||'info'}</span></div>
+          <div class="knd-content"><div class="knd-title">${this._esc(n.titre)}</div><div class="knd-msg">${this._esc(n.message)}</div><div class="knd-time">${this._ago(n.created_at)}</div></div>
+        </div>`;
+      }).join('');
+      body.querySelectorAll('.knd-item').forEach(el => {
+        el.addEventListener('click', () => this._markRead(parseInt(el.dataset.id)));
       });
-      this.fetchCount();
-      this.fetchNotifications();
-    } catch (e) { /* silencieux */ }
+    } catch(e) {}
   },
 
-  async markAllRead() {
+  async _markRead(id) {
     try {
-      await fetch('../api/notifications.php', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'markAllRead' })
-      });
-      this.fetchCount();
-      this.fetchNotifications();
-    } catch (e) { /* silencieux */ }
+      await fetch(KLINIK_API + 'notifications.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'markRead', id}) });
+      this.fetchCount(); this._fetchList();
+    } catch(e) {}
   },
 
-  timeAgo(dateStr) {
-    const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
-    if (diff < 60) return 'À l\'instant';
-    if (diff < 3600) return Math.floor(diff/60) + ' min';
-    if (diff < 86400) return Math.floor(diff/3600) + ' h';
-    return Math.floor(diff/86400) + ' j';
+  async _markAllRead() {
+    try {
+      await fetch(KLINIK_API + 'notifications.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'markAllRead'}) });
+      this.fetchCount(); this._fetchList();
+    } catch(e) {}
   },
 
-  escHtml(s) {
-    const d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-  },
-
-  stop() { if (this._interval) clearInterval(this._interval); }
+  _ago(d) { const s=(Date.now()-new Date(d).getTime())/1000; if(s<60)return"À l'instant"; if(s<3600)return Math.floor(s/60)+' min'; if(s<86400)return Math.floor(s/3600)+' h'; return Math.floor(s/86400)+' j'; },
+  _esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; },
+  stop() { if(this._interval)clearInterval(this._interval); }
 };
 
-/* ── Messages Count Polling ── */
+/* ══════════════════════════════════════
+   MESSAGES — Auto-init system
+══════════════════════════════════════ */
 const KlinikMessages = {
-  _interval: null,
+  _interval: null, _badgeEl: null, _btnEl: null, _dropdownEl: null,
 
   init() {
+    this._btnEl = this._findIconBtn('mail_outline') || this._findIconBtn('mail') || this._findIconBtn('chat');
+    if (!this._btnEl) return;
+    this._btnEl.style.position = 'relative';
+    this._btnEl.style.cursor = 'pointer';
+
+    // Ensure badge
+    this._badgeEl = this._btnEl.querySelector('.msg-badge, .notif-badge');
+    if (!this._badgeEl) {
+      this._badgeEl = document.createElement('span');
+      this._badgeEl.className = 'notif-badge msg-badge';
+      this._badgeEl.style.display = 'none';
+      this._btnEl.appendChild(this._badgeEl);
+    }
+    this._badgeEl.style.display = 'none';
+
+    // Create dropdown
+    this._createDropdown();
+
+    this._btnEl.addEventListener('click', (e) => { e.stopPropagation(); this._toggleDropdown(); });
+
     this.fetchCount();
-    this._interval = setInterval(() => this.fetchCount(), 45000);
+    this._interval = setInterval(() => this.fetchCount(), 10000);
+  },
+
+  _findIconBtn(iconName) {
+    const icons = document.querySelectorAll('.topbar-icon-btn .material-icons');
+    for (const ic of icons) { if (ic.textContent.trim() === iconName) return ic.closest('.topbar-icon-btn'); }
+    return null;
+  },
+
+  _createDropdown() {
+    const dd = document.createElement('div');
+    dd.className = 'klinik-msg-dropdown';
+    dd.innerHTML = '<div class="knd-header"><span>Messages</span></div><div class="knd-body"><p class="knd-empty">Chargement...</p></div>';
+    dd.addEventListener('click', e => e.stopPropagation());
+    this._btnEl.appendChild(dd);
+    this._dropdownEl = dd;
   },
 
   async fetchCount() {
     try {
-      const res = await fetch('../api/messages.php?action=count');
-      const data = await res.json();
-      if (data.success) {
-        const badges = document.querySelectorAll('.msg-badge');
-        badges.forEach(b => {
-          if (data.count > 0) { b.textContent = data.count; b.style.display = 'flex'; }
-          else { b.style.display = 'none'; }
-        });
-      }
-    } catch (e) { /* silencieux */ }
+      const r = await fetch(KLINIK_API + 'messages.php?action=count');
+      const d = await r.json();
+      if (d.success) this._updateBadge(d.count);
+    } catch(e) {}
   },
 
-  stop() { if (this._interval) clearInterval(this._interval); }
+  _updateBadge(count) {
+    if (!this._badgeEl) return;
+    if (count > 0) { this._badgeEl.textContent = count > 99 ? '99+' : count; this._badgeEl.style.display = 'flex'; }
+    else { this._badgeEl.style.display = 'none'; }
+  },
+
+  async _toggleDropdown() {
+    if (!this._dropdownEl) return;
+    const open = this._dropdownEl.classList.toggle('open');
+    if (KlinikNotifications._dropdownEl) KlinikNotifications._dropdownEl.classList.remove('open');
+    if (open) await this._fetchInbox();
+  },
+
+  async _fetchInbox() {
+    try {
+      const r = await fetch(KLINIK_API + 'messages.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'inbox'}) });
+      const d = await r.json();
+      const body = this._dropdownEl.querySelector('.knd-body');
+      if (!d.success || !d.messages || d.messages.length === 0) {
+        body.innerHTML = '<p class="knd-empty">Aucun message</p>'; return;
+      }
+      body.innerHTML = d.messages.slice(0, 8).map(m => {
+        const initials = ((m.exp_prenom?.[0]||'')+(m.exp_nom?.[0]||'')).toUpperCase();
+        return `<div class="knd-item${m.lu?'':' unread'}" data-id="${m.id}">
+          <div class="knd-avatar">${initials}</div>
+          <div class="knd-content"><div class="knd-title">${this._esc(m.exp_prenom+' '+m.exp_nom)}</div><div class="knd-msg">${this._esc(m.contenu).substring(0,60)}${m.contenu.length>60?'...':''}</div><div class="knd-time">${KlinikNotifications._ago(m.created_at)}</div></div>
+        </div>`;
+      }).join('');
+      body.querySelectorAll('.knd-item').forEach(el => {
+        el.addEventListener('click', async () => {
+          const id = parseInt(el.dataset.id);
+          await fetch(KLINIK_API + 'messages.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'markRead', id}) });
+          el.classList.remove('unread');
+          this.fetchCount();
+        });
+      });
+    } catch(e) {}
+  },
+
+  _esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; },
+  stop() { if(this._interval)clearInterval(this._interval); }
 };
 
-/* ── Animation spin ── */
-const style = document.createElement('style');
-style.textContent = `
-@keyframes spin { to { transform: rotate(360deg); } }
-.notif-dropdown { position:absolute; top:calc(100% + 8px); right:0; width:340px; background:#fff; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.15); border:1px solid #eef0f6; z-index:300; display:none; overflow:hidden; }
-.notif-dropdown.open { display:block; animation:fadeUp .2s ease; }
-.notif-dropdown-header { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid #eef0f6; font-weight:700; font-size:.88rem; color:#1a3a6e; }
-.notif-dropdown-header button { background:none; border:none; color:#2563eb; font-size:.78rem; font-weight:600; cursor:pointer; }
-.notif-dropdown-body { max-height:350px; overflow-y:auto; }
-.notif-item { display:flex; gap:10px; padding:12px 16px; border-bottom:1px solid #f5f7fb; cursor:pointer; transition:background .15s; }
-.notif-item:hover { background:#f8faff; }
-.notif-item.unread { background:#f0f7ff; }
-.notif-icon .material-icons { font-size:20px; margin-top:2px; }
-.notif-content { flex:1; min-width:0; }
-.notif-title { font-size:.82rem; font-weight:600; color:#1a3a6e; }
-.notif-msg { font-size:.76rem; color:#6b7280; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.notif-time { font-size:.68rem; color:#9ca3af; margin-top:3px; }
+/* ── Inject dropdown styles + spin animation ── */
+(function(){
+  const s = document.createElement('style');
+  s.textContent = `
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes kndFadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.klinik-notif-dropdown,.klinik-msg-dropdown{position:absolute;top:calc(100% + 10px);right:-10px;width:360px;background:#fff;border-radius:14px;box-shadow:0 12px 48px rgba(0,0,0,.18);border:1px solid #eef0f6;z-index:9999;display:none;overflow:hidden}
+.klinik-notif-dropdown.open,.klinik-msg-dropdown.open{display:block;animation:kndFadeIn .2s ease}
+.knd-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #eef0f6;font-weight:700;font-size:.9rem;color:#1a3a6e}
+.knd-mark-all{background:none;border:none;color:#2563eb;font-size:.78rem;font-weight:600;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background .15s}
+.knd-mark-all:hover{background:#e8f0fe}
+.knd-body{max-height:380px;overflow-y:auto}
+.knd-empty{padding:28px;text-align:center;color:#9ca3af;font-size:.85rem}
+.knd-item{display:flex;gap:12px;padding:14px 18px;border-bottom:1px solid #f5f7fb;cursor:pointer;transition:background .12s}
+.knd-item:hover{background:#f8faff}
+.knd-item.unread{background:#f0f5ff}
+.knd-item:last-child{border-bottom:none}
+.knd-icon .material-icons{font-size:22px;margin-top:2px}
+.knd-avatar{width:36px;height:36px;border-radius:50%;background:#1e3a5f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;font-family:'Oswald',sans-serif}
+.knd-content{flex:1;min-width:0}
+.knd-title{font-size:.84rem;font-weight:600;color:#1a3a6e}
+.knd-msg{font-size:.78rem;color:#6b7280;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.knd-time{font-size:.7rem;color:#9ca3af;margin-top:4px}
 `;
-document.head.appendChild(style);
+  document.head.appendChild(s);
+})();
+
+/* ══════════════════════════════════════
+   AUTO-INIT on DOMContentLoaded
+   Works on ALL pages automatically
+══════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  // Only init if we have a topbar (= user is logged in on a dashboard/module page)
+  if (document.querySelector('.topbar-right')) {
+    KlinikNotifications.init();
+    KlinikMessages.init();
+  }
+});

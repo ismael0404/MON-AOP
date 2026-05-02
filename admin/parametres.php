@@ -78,6 +78,17 @@ $section = $_POST['action'] ?? 'compte';
     <a class="nav-item" href="historique.php"><span class="material-icons">calendar_today</span> Historique des Rendez-vous</a>
     <a class="nav-item" href="dossiers_medicaux.php"><span class="material-icons">folder_shared</span> Dossiers médicaux</a>
     <a class="nav-item" href="facturation.php"><span class="material-icons">receipt_long</span> Facturation</a>
+    
+    <div class="nav-section-title">Communication & Finances</div>
+    <a class="nav-item" href="../notifications/index.php">
+      <span class="material-icons">notifications</span> Notifications
+    </a>
+    <a class="nav-item" href="../modules/messages/index.php">
+      <span class="material-icons">chat</span> Messagerie
+    </a>
+    <a class="nav-item" href="../modules/paiements/index.php">
+      <span class="material-icons">payments</span> Paiements
+    </a>
     <div class="nav-section-title">Système</div>
     <a class="nav-item" href="rapports.php"><span class="material-icons">bar_chart</span> Rapports</a>
     <a class="nav-item active" href="parametres.php"><span class="material-icons">settings</span> Paramètres</a>

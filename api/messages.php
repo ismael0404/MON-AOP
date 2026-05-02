@@ -84,6 +84,14 @@ try {
         jsonResponse(true,'Message lu.');
     }
 
+    // Marquer tout un fil comme lu
+    if($action==='markThreadRead'){
+        $contactId=(int)($input['contact_id']??0);
+        if(!$contactId)jsonResponse(false,'Contact ID requis.');
+        $pdo->prepare("UPDATE messages SET lu=1 WHERE expediteur_id=? AND destinataire_id=? AND lu=0")->execute([$contactId,$uid]);
+        jsonResponse(true,'Fil lu.');
+    }
+
     // Compter non-lus
     if($action==='count'){
         $s=$pdo->prepare("SELECT COUNT(*) FROM messages WHERE destinataire_id=? AND lu=0");

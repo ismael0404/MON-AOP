@@ -44,6 +44,14 @@ try {
         jsonResponse(true,'Toutes les notifications marquées comme lues.');
     }
 
+    // Supprimer une notification
+    if($action==='delete'){
+        $id=(int)($input['id']??0);
+        if(!$id)jsonResponse(false,'ID requis.');
+        $pdo->prepare("DELETE FROM notifications WHERE id=? AND utilisateur_id=?")->execute([$id,$uid]);
+        jsonResponse(true,'Notification supprimée.');
+    }
+
     jsonResponse(false,'Action non reconnue.');
 }catch(PDOException $e){
     logError('NOTIFICATION','Erreur: '.$e->getMessage());
