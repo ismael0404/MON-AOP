@@ -56,7 +56,7 @@ try {
         if(!$factureId||!$provider||!$telephone||$montant<=0){
             jsonResponse(false,'Facture, provider, téléphone et montant requis.');
         }
-        if(!in_array($provider,['wave','orange_money','mtn_momo','moov_money'])){
+        if(!in_array($provider,['wave','orange_money','mtn_momo','moov_money','cash'])){
             jsonResponse(false,'Provider invalide.');
         }
         // Vérifier facture
@@ -99,6 +99,99 @@ try {
         $pm=$s->fetch();
         if(!$pm)jsonResponse(false,'Transaction introuvable.');
         jsonResponse(true,'OK',['statut'=>$pm['statut'],'provider'=>$pm['provider'],'montant'=>$pm['montant']]);
+    }
+
+    // ═══════════════════════════════
+    //  SIMULATE CALLBACK
+    // ═══════════════════════════════
+    if($action==='simulate_callback'){
+        checkAuth(['patient','caissier','admin']);
+        $txId=cleanInput($input['transaction_id']??'');
+        if(!$txId)jsonResponse(false,'Transaction ID requis.');
+        
+        $s=$pdo->prepare("SELECT * FROM paiements_mobile WHERE transaction_id=?");$s->execute([$txId]);
+        $pm=$s->fetch();
+        if(!$pm)jsonResponse(false,'Transaction introuvable.');
+        if($pm['statut']!=='en_cours')jsonResponse(false,'Statut invalide pour simulation.');
+
+        $factureId = $pm['facture_id'];
+        
+        // Simuler succès (ou 10% d'échec)
+        $success = rand(1,10) <= 9;
+        
+        if($success) {
+            $pdo->prepare("UPDATE paiements_mobile SET statut='succes' WHERE id=?")->execute([$pm['id']]);
+            // Insérer dans paiements officiels
+            $pdo->prepare("INSERT INTO paiements(facture_id, caissier_id, montant_paye, mode_paiement, reference) VALUES(?, ?, ?, 'mobile_money', ?)")
+                ->execute([$factureId, 1 /* system/auto */, $pm['montant'], $txId]);
+            $paiementId = $pdo->lastInsertId();
+            
+            // Mettre à jour facture
+            $pdo->prepare("UPDATE factures SET statut='payee' WHERE id=?")->execute([$factureId]);
+            
+            // Récupérer le patient
+            $fp=$pdo->prepare("SELECT patient_id FROM factures WHERE id=?");$fp->execute([$factureId]);
+            $pid=$fp->fetchColumn();
+            
+            if($pid) {
+                $up=$pdo->prepare("SELECT utilisateur_id FROM patients WHERE id=?");$up->execute([$pid]);
+                $uid=$up->fetchColumn();
+                if($uid) {
+                    createNotification($pdo, $uid, 'Paiement Confirmé', "Votre paiement de {$pm['montant']}F (Facture #{$factureId}) a été validé.", 'success');
+                }
+            }
+            // Notifier admin (user 1 par ex)
+            createNotification($pdo, 1, 'Nouveau Paiement', "Paiement de {$pm['montant']}F reçu via {$pm['provider']}.", 'info');
+            
+            jsonResponse(true,'Paiement réussi.', ['statut'=>'succes', 'paiement_id'=>$paiementId]);
+        } else {
+            $pdo->prepare("UPDATE paiements_mobile SET statut='echec', erreur='Fonds insuffisants ou rejet réseau' WHERE id=?")->execute([$pm['id']]);
+            jsonResponse(true,'Paiement échoué.', ['statut'=>'echec']);
+        }
+    }
+
+    // ═══════════════════════════════
+    //  VALIDER PAIEMENT (Caissier/Admin)
+    // ═══════════════════════════════
+    if($action==='valider'){
+        checkAuth(['caissier','admin']);
+        $pmId=(int)($input['pm_id']??0);
+        if(!$pmId)jsonResponse(false,'ID requis.');
+        
+        $user=getUser();
+        
+        $s=$pdo->prepare("SELECT * FROM paiements_mobile WHERE id=?");$s->execute([$pmId]);
+        $pm=$s->fetch();
+        if(!$pm)jsonResponse(false,'Paiement introuvable.');
+        
+        // Trouver le paiement officiel s'il existe
+        $sp=$pdo->prepare("SELECT id FROM paiements WHERE reference=?");$sp->execute([$pm['transaction_id']]);
+        $pOff=$sp->fetchColumn();
+        
+        if($pOff) {
+            $pdo->prepare("UPDATE paiements SET validated_by=?, validated_at=NOW() WHERE id=?")->execute([$user['id'], $pOff]);
+        }
+        
+        // Mettre status succès si ce n'est pas déjà
+        if($pm['statut'] !== 'succes') {
+            $pdo->prepare("UPDATE paiements_mobile SET statut='succes' WHERE id=?")->execute([$pmId]);
+            $pdo->prepare("UPDATE factures SET statut='payee' WHERE id=?")->execute([$pm['facture_id']]);
+        }
+        
+        jsonResponse(true,'Paiement validé avec succès.');
+    }
+    
+    // ═══════════════════════════════
+    //  ANNULER PAIEMENT (Caissier/Admin)
+    // ═══════════════════════════════
+    if($action==='annuler'){
+        checkAuth(['caissier','admin']);
+        $pmId=(int)($input['pm_id']??0);
+        if(!$pmId)jsonResponse(false,'ID requis.');
+        
+        $pdo->prepare("UPDATE paiements_mobile SET statut='echec', erreur='Annulé par la caisse' WHERE id=?")->execute([$pmId]);
+        
+        jsonResponse(true,'Paiement annulé.');
     }
 
     jsonResponse(false,'Action non reconnue.');
