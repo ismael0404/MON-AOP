@@ -1,0 +1,477 @@
+/* ═══════════════════════════════════════
+   KLINIK — Dashboard Layout
+═══════════════════════════════════════ */
+
+/* ══════════════════════════════
+   ANIMATIONS GLOBALES
+══════════════════════════════ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  position: fixed;
+  top: 68px;
+  left: 0;
+  width: 260px;
+  height: calc(100vh - 68px);
+  background: #1e3a5f;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  transition: transform .3s ease;
+  overflow-y: auto;
+  animation: slideInLeft .4s ease both;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 20px 18px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.sidebar-logo img {
+  height: 36px;
+  width: auto;
+}
+
+/* Espace réservé pour le logo */
+.logo-placeholder {
+  width: 120px;
+  height: 36px;
+  background: rgba(255,255,255,.1);
+  border: 1.5px dashed rgba(255,255,255,.3);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  color: rgba(255,255,255,.4);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.sidebar-role-badge {
+  margin: 14px 20px 0;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-align: center;
+  width: fit-content;
+}
+
+.badge-admin     { background: rgba(124,58,237,.25); color: #a78bfa; }
+.badge-medecin   { background: rgba(8,145,178,.25);  color: #67e8f9; }
+.badge-patient   { background: rgba(37,99,235,.25);  color: #93c5fd; }
+.badge-laborantin{ background: rgba(5,150,105,.25);  color: #6ee7b7; }
+.badge-caissier  { background: rgba(217,119,6,.25);  color: #fcd34d; }
+
+.sidebar-user {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.sidebar-user .user-name {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  margin-top: 4px;
+}
+
+.sidebar-user .user-email {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,.45);
+  margin-top: 2px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 16px 0;
+}
+
+.nav-section-title {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.3);
+  padding: 12px 20px 6px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 20px;
+  color: rgba(255,255,255,.65);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .22s;
+  border-left: 3px solid transparent;
+  text-decoration: none;
+}
+
+.nav-item .material-icons { font-size: 20px; }
+
+.nav-item:hover {
+  background: rgba(255,255,255,.07);
+  color: #fff;
+}
+
+.nav-item.active {
+  background: rgba(37,99,235,.2);
+  color: #fff;
+  border-left-color: var(--blue-bright);
+}
+
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.sidebar-footer .nav-item {
+  padding: 10px 0;
+  border-left: none;
+  color: rgba(255,255,255,.5);
+}
+
+.sidebar-footer .nav-item:hover { background: transparent; color: #ef4444; }
+
+/* ── Main layout ── */
+.main-wrapper {
+  margin-left: 260px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-top: 68px;
+}
+
+/* ── Top bar — pleine largeur fixe par-dessus la sidebar ── */
+.topbar {
+  background: #fff;
+  border-bottom: 1px solid #eef0f6;
+  padding: 0 28px 0 20px;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  box-shadow: 0 2px 16px rgba(26,58,110,.07);
+  animation: fadeIn .4s ease both;
+}
+
+/* Logo dans la topbar */
+.topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 240px;
+  flex-shrink: 0;
+  text-decoration: none;
+  padding-left: 8px;
+}
+.topbar-logo img { height: 32px; width: auto; }
+.topbar-logo .logo-name {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.1rem; font-weight: 700;
+  color: var(--blue); letter-spacing: 2px; text-transform: uppercase;
+  display: none;
+}
+.topbar-logo img[style*="display:none"] + .logo-name { display: block; }
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.topbar-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.05rem; font-weight: 600;
+  color: var(--blue); letter-spacing: .3px;
+}
+
+/* Barre de recherche — centrée dans la topbar */
+.topbar-search {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 360px;
+}
+.topbar-search .material-icons {
+  position: absolute;
+  left: 12px; top: 50%; transform: translateY(-50%);
+  font-size: 18px; color: #9ca3af; pointer-events: none;
+}
+.topbar-search input {
+  width: 100%;
+  padding: 9px 16px 9px 38px;
+  border: 1.5px solid #eef0f6;
+  border-radius: 50px;
+  background: #f8f9fc;
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: .85rem; color: var(--text);
+  outline: none;
+  transition: border-color .2s, background .2s, box-shadow .2s;
+}
+.topbar-search input::placeholder { color: #b0b7c3; }
+.topbar-search input:focus {
+  border-color: var(--blue-bright);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.08);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-icon-btn {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  border: 1.5px solid #eef0f6;
+  background: #f8f9fc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .2s;
+  position: relative;
+}
+.topbar-icon-btn:hover { background: var(--blue-light); border-color: var(--blue-bright); }
+.topbar-icon-btn .material-icons { font-size: 20px; color: #6b7280; transition: color .2s; }
+.topbar-icon-btn:hover .material-icons { color: var(--blue-bright); }
+
+.notif-badge {
+  position: absolute;
+  top: -4px; right: -4px;
+  width: 16px; height: 16px;
+  background: var(--danger);
+  color: #fff;
+  border-radius: 50%;
+  font-size: .6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+}
+
+/* Profil utilisateur topbar */
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 50px;
+  border: 1.5px solid #eef0f6;
+  background: #f8f9fc;
+  cursor: pointer;
+  transition: all .22s;
+  margin-left: 4px;
+}
+.topbar-user:hover { border-color: var(--blue-bright); background: var(--blue-light); }
+
+.topbar-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Oswald', sans-serif;
+  font-size: .85rem;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.topbar-user-info { line-height: 1.2; }
+.topbar-user-name  { font-size: .82rem; font-weight: 600; color: var(--text); }
+.topbar-user-role  { font-size: .7rem; color: var(--muted); }
+
+/* ── Page content ── */
+.page-content {
+  flex: 1;
+  padding: 28px;
+}
+
+.page-header {
+  margin-bottom: 28px;
+}
+
+.page-header h1 {
+  font-size: 1.5rem;
+  color: var(--blue);
+}
+
+.page-header p {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* ── Stat cards ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 1.5px solid #eef0f6;
+  padding: 20px 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 10px rgba(26,58,110,.05);
+  animation: fadeUp .5s ease both;
+  opacity: 0;
+  transition: transform .25s, box-shadow .25s;
+}
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(26,58,110,.1); }
+.stat-card:nth-child(1) { animation-delay: .08s; }
+.stat-card:nth-child(2) { animation-delay: .16s; }
+.stat-card:nth-child(3) { animation-delay: .24s; }
+.stat-card:nth-child(4) { animation-delay: .32s; }
+
+.stat-icon {
+  width: 52px; height: 52px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-icon .material-icons { font-size: 26px; color: #fff; }
+
+.stat-info .stat-value {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.stat-info .stat-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* ── Tables ── */
+.table-card {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgba(26,58,110,.05);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.table-header {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.table-header h3 {
+  font-size: 1rem;
+  color: var(--blue);
+}
+
+.klinik-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.klinik-table thead th {
+  background: var(--bg);
+  padding: 11px 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.klinik-table tbody td {
+  padding: 13px 16px;
+  font-size: 0.88rem;
+  border-bottom: 1px solid #f0f4fa;
+  color: var(--text);
+}
+
+.klinik-table tbody tr:last-child td { border-bottom: none; }
+.klinik-table tbody tr:hover td { background: #f8faff; }
+
+/* ── Badges de statut ── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-active   { background: #dcfce7; color: #166534; }
+.status-pending  { background: #fef3c7; color: #92400e; }
+.status-inactive { background: #fee2e2; color: #991b1b; }
+.status-done     { background: #e0f2fe; color: #0369a1; }
+
+/* ── Grid layout ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+
+@media (max-width: 900px) {
+  .sidebar { transform: translateX(-100%); }
+  .main-wrapper { margin-left: 0; }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+}
+
+/* ── Menu hamburger mobile ── */
+.sidebar-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+
+@media (max-width: 900px) {
+  .sidebar-toggle { display: flex; }
+  .sidebar.open { transform: translateX(0); }
+}

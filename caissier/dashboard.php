@@ -1,0 +1,316 @@
+<?php
+require_once '../includes/check_auth.php';
+require_once '../config/database.php';
+require_once '../includes/functions.php';
+checkAuth(['caissier']);
+$user=getUser();$pdo=getDB();$uid=$user['id'];
+
+function q($pdo,$sql,$p=[]){$s=$pdo->prepare($sql);$s->execute($p);return $s->fetchColumn();}
+
+$recetteAuj  =q($pdo,"SELECT COALESCE(SUM(montant_paye),0) FROM paiements WHERE DATE(date_paiement)=CURDATE()");
+$nbImpayees  =q($pdo,"SELECT COUNT(*) FROM factures WHERE statut='impayee'");
+$nbPayeesAuj =q($pdo,"SELECT COUNT(*) FROM paiements WHERE DATE(date_paiement)=CURDATE()");
+$recetteMois =q($pdo,"SELECT COALESCE(SUM(montant_paye),0) FROM paiements WHERE MONTH(date_paiement)=MONTH(NOW()) AND YEAR(date_paiement)=YEAR(NOW())");
+$totalImpaye =q($pdo,"SELECT COALESCE(SUM(montant_total),0) FROM factures WHERE statut='impayee'");
+
+// Dernières factures
+$factures=$pdo->query("SELECT f.*,u.nom,u.prenom FROM factures f JOIN patients p ON f.patient_id=p.id JOIN utilisateurs u ON p.utilisateur_id=u.id ORDER BY f.date_facture DESC LIMIT 8")->fetchAll();
+
+// Activité financière 7 jours
+$jours=[];$recettes=[];
+for($i=6;$i>=0;$i--){
+    $d=date('Y-m-d',strtotime("-$i days"));
+    $jours[]=date('d/m',strtotime($d));
+    $recettes[]=(float)q($pdo,"SELECT COALESCE(SUM(montant_paye),0) FROM paiements WHERE DATE(date_paiement)=?",[$d]);
+}
+
+// Modes de paiement
+$nbEspeces   =q($pdo,"SELECT COUNT(*) FROM paiements WHERE mode_paiement='especes'");
+$nbCarte     =q($pdo,"SELECT COUNT(*) FROM paiements WHERE mode_paiement='carte'");
+$nbMobile    =q($pdo,"SELECT COUNT(*) FROM paiements WHERE mode_paiement='mobile_money'");
+$nbCheque    =q($pdo,"SELECT COUNT(*) FROM paiements WHERE mode_paiement='cheque'");
+
+// Recettes 6 mois
+$moisLabels=[];$moisVals=[];
+for($i=5;$i>=0;$i--){
+    $m=date('Y-m',strtotime("-$i months"));
+    $moisLabels[]=date('M',strtotime("-$i months"));
+    $moisVals[]=(float)q($pdo,"SELECT COALESCE(SUM(montant_paye),0) FROM paiements WHERE DATE_FORMAT(date_paiement,'%Y-%m')=?",[$m]);
+}
+
+$pts=$pdo->query("SELECT p.id,u.nom,u.prenom FROM patients p JOIN utilisateurs u ON p.utilisateur_id=u.id ORDER BY u.nom")->fetchAll();
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>KLINIK — Espace Caissier</title>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .dash-grid{display:grid;grid-template-columns:1fr 1fr 280px;gap:20px;align-items:start}
+    .col-left,.col-mid,.col-right{display:flex;flex-direction:column;gap:20px}
+    .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+    .stat-card{background:#fff;border-radius:14px;padding:18px;display:flex;align-items:center;gap:12px;border:1.5px solid #eef0f6;box-shadow:0 2px 10px rgba(26,58,110,.05);transition:transform .25s,box-shadow .25s;animation:fadeUp .5s ease both;opacity:0}
+    .stat-card:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(26,58,110,.1)}
+    .stat-card:nth-child(1){animation-delay:.06s}.stat-card:nth-child(2){animation-delay:.12s}.stat-card:nth-child(3){animation-delay:.18s}.stat-card:nth-child(4){animation-delay:.24s}
+    .stat-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .stat-icon .material-icons{font-size:22px;color:#fff}
+    .stat-value{font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:var(--blue);line-height:1}
+    .stat-label{font-size:.72rem;color:var(--muted);margin-top:3px}
+    .card{background:#fff;border-radius:14px;padding:20px;border:1.5px solid #eef0f6;box-shadow:0 2px 10px rgba(26,58,110,.05)}
+    .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .card-header h3{font-family:'Oswald',sans-serif;font-size:.95rem;color:var(--blue);text-transform:uppercase;letter-spacing:.5px}
+    /* Carte récapitulative financière */
+    .finance-card{background:linear-gradient(135deg,#1a3a6e 0%,#2563eb 100%);border-radius:14px;padding:20px;color:#fff}
+    .finance-title{font-size:.72rem;opacity:.7;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+    .finance-amount{font-family:'Oswald',sans-serif;font-size:1.8rem;font-weight:700;line-height:1;margin-bottom:2px}
+    .finance-sub{font-size:.72rem;opacity:.6}
+    .finance-divider{border:none;border-top:1px solid rgba(255,255,255,.15);margin:14px 0}
+    .finance-row{display:flex;justify-content:space-between;font-size:.78rem;padding:4px 0}
+    .finance-row .fl{opacity:.65}
+    .finance-row .fv{font-weight:600}
+    /* Factures */
+    .facture-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f4fa}
+    .facture-row:last-child{border-bottom:none}
+    .facture-avatar{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .facture-avatar .material-icons{font-size:17px;color:#fff}
+    /* Mode paiement pills */
+    .mode-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:.68rem;font-weight:600;background:#f0f4fa;color:var(--text)}
+    /* Actions */
+    .qa-btn{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1.5px solid #eef0f6;background:#fff;cursor:pointer;transition:all .2s;text-decoration:none;color:var(--text);margin-bottom:8px}
+    .qa-btn:hover{border-color:var(--blue-bright);background:var(--blue-light);transform:translateX(3px)}
+    .qa-icon{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .qa-icon .material-icons{font-size:16px;color:#fff}
+    .qa-label{font-size:.83rem;font-weight:600;color:var(--blue)}
+    .qa-sub{font-size:.7rem;color:var(--muted)}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:200}
+    .modal-overlay.open{display:flex}
+    .modal{background:#fff;border-radius:14px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:fadeUp .3s ease}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+    .modal-header h3{font-family:'Oswald',sans-serif;font-size:1.1rem;color:var(--blue);text-transform:uppercase}
+    .modal-close{background:none;border:none;cursor:pointer;color:var(--muted)}
+    .alert-msg{padding:10px 14px;border-radius:8px;font-size:.85rem;margin-bottom:16px;display:none}
+    .alert-msg.show{display:block}
+    .alert-success{background:#d1fae5;border:1px solid #6ee7b7;color:#065f46}
+    .alert-error{background:#fee2e2;border:1px solid #fca5a5;color:#991b1b}
+    @media(max-width:1200px){.dash-grid{grid-template-columns:1fr 280px}.col-mid{display:none}}
+    @media(max-width:900px){.dash-grid{grid-template-columns:1fr}.stats-row{grid-template-columns:repeat(2,1fr)}}
+  </style>
+</head>
+<body>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-role-badge badge-caissier">Caissier</div>
+  <div class="sidebar-user"><div class="user-name" id="sidebarUserName">—</div><div class="user-email" id="sidebarUserEmail">—</div></div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-title">Principal</div>
+    <a class="nav-item active" href="dashboard.php"><span class="material-icons">dashboard</span> Tableau de bord</a>
+    <div class="nav-section-title">Facturation</div>
+    <a class="nav-item" href="#" onclick="openModal('modalFacture');return false;"><span class="material-icons">add_circle</span> Nouvelle facture</a>
+    <a class="nav-item" href="toutes_les_factures.php"><span class="material-icons">receipt_long</span> Toutes les factures</a>
+    <a class="nav-item" href="impayes.php"><span class="material-icons">pending_actions</span> Impayés</a>
+    <a class="nav-item" href="paiements_recus.php"><span class="material-icons">check_circle</span> Paiements reçus</a>
+    <div class="nav-section-title">Rapports</div>
+    <a class="nav-item" href="rapports.php"><span class="material-icons">bar_chart</span> Rapport</a>
+  </nav>
+  <div class="sidebar-footer"><a class="nav-item" href="../auth/logout.php"><span class="material-icons">logout</span> Déconnexion</a></div>
+</aside>
+<div class="main-wrapper">
+  <header class="topbar">
+    <a class="topbar-logo" href="dashboard.php"><img src="../assets/img/logo.png" alt="KLINIK" onerror="this.style.display='none'"><span class="logo-name">KLINIK</span></a>
+    <div class="topbar-left"><button class="sidebar-toggle" id="sidebarToggle"><span class="material-icons">menu</span></button></div>
+    <div class="topbar-search"><span class="material-icons">search</span><input type="text" placeholder="Rechercher facture, patient..."></div>
+    <div class="topbar-right">
+      <div class="topbar-icon-btn"><span class="material-icons">notifications</span><?php if($nbImpayees>0):?><span class="notif-badge"><?=$nbImpayees?></span><?php endif;?></div>
+      <div class="topbar-icon-btn"><span class="material-icons">mail_outline</span></div>
+      <div class="topbar-user">
+        <div class="topbar-avatar" id="topbarAvatar">CA</div>
+        <div class="topbar-user-info"><div class="topbar-user-name" id="topbarUserName">—</div><div class="topbar-user-role">Caissier</div></div>
+      </div>
+    </div>
+  </header>
+  <main class="page-content">
+    <div class="page-header" style="margin-bottom:20px">
+      <h1>Espace <span style="color:var(--blue-bright)">Caissier</span></h1>
+      <p>Gestion financière — <?=date('d F Y')?></p>
+    </div>
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-icon" style="background:var(--success)"><span class="material-icons">payments</span></div><div><div class="stat-value"><?=number_format($recetteAuj/1000,0)?>K</div><div class="stat-label">Recette aujourd'hui</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:var(--danger)"><span class="material-icons">pending_actions</span></div><div><div class="stat-value"><?=$nbImpayees?></div><div class="stat-label">Factures impayées</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-bright)"><span class="material-icons">receipt_long</span></div><div><div class="stat-value"><?=$nbPayeesAuj?></div><div class="stat-label">Paiements aujourd'hui</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#7c3aed"><span class="material-icons">trending_up</span></div><div><div class="stat-value"><?=number_format($recetteMois/1000,0)?>K</div><div class="stat-label">Recette du mois</div></div></div>
+    </div>
+    <!-- Grille -->
+    <div class="dash-grid">
+      <!-- Gauche : factures -->
+      <div class="col-left">
+        <div class="card">
+          <div class="card-header">
+            <h3>Dernières factures</h3>
+            <button class="btn-primary" style="padding:6px 14px;font-size:.78rem" onclick="openModal('modalFacture')"><span class="material-icons" style="font-size:15px">add</span> Facture</button>
+          </div>
+          <?php if(empty($factures)):?><p style="color:var(--muted);text-align:center;padding:24px 0;font-size:.85rem">Aucune facture</p>
+          <?php else: foreach($factures as $f):
+            $ic=$f['statut']==='payee'?'var(--success)':($f['statut']==='partielle'?'var(--warning)':'var(--danger)');
+          ?>
+          <div class="facture-row">
+            <div class="facture-avatar" style="background:<?=$ic?>"><span class="material-icons">receipt_long</span></div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:.86rem"><?=htmlspecialchars($f['prenom'].' '.$f['nom'])?></div>
+              <div style="font-size:.72rem;color:var(--muted)"><?=date('d/m/Y',strtotime($f['date_facture']))?></div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--blue)"><?=number_format($f['montant_total'],0,',',' ')?><span style="font-size:.65rem;font-weight:400"> FCFA</span></div>
+              <span class="status-badge <?=$f['statut']==='payee'?'status-active':($f['statut']==='partielle'?'status-pending':'status-inactive')?>" style="font-size:.65rem"><?=$f['statut']==='payee'?'Payée':($f['statut']==='partielle'?'Partielle':'Impayée')?></span>
+            </div>
+            <?php if($f['statut']!=='payee'):?>
+            <button class="btn-primary" style="padding:4px 8px;font-size:.72rem;margin-left:6px;flex-shrink:0" onclick="openEncaissement(<?=$f['id']?>,<?=$f['montant_total']?>,'<?=htmlspecialchars($f['prenom'].' '.$f['nom'])?>')">
+              <span class="material-icons" style="font-size:13px">payments</span>
+            </button>
+            <?php endif;?>
+          </div>
+          <?php endforeach;endif;?>
+        </div>
+        <!-- Graphique recettes 6 mois -->
+        <div class="card">
+          <div class="card-header"><h3>Recettes mensuelles</h3><span style="font-size:.72rem;color:var(--muted)">6 mois</span></div>
+          <canvas id="chartMois" height="140"></canvas>
+        </div>
+      </div>
+      <!-- Milieu : graphiques -->
+      <div class="col-mid">
+        <!-- Activité 7 jours -->
+        <div class="card">
+          <div class="card-header"><h3>Activité 7 jours</h3></div>
+          <canvas id="chartJours" height="160"></canvas>
+        </div>
+        <!-- Modes de paiement -->
+        <div class="card">
+          <div class="card-header"><h3>Modes de paiement</h3></div>
+          <canvas id="chartModes" height="160"></canvas>
+        </div>
+      </div>
+      <!-- Droite -->
+      <div class="col-right">
+        <!-- Carte financière -->
+        <div class="finance-card">
+          <div class="finance-title">Recette du mois</div>
+          <div class="finance-amount"><?=number_format($recetteMois,0,',',' ')?></div>
+          <div class="finance-sub">FCFA encaissés</div>
+          <hr class="finance-divider">
+          <div class="finance-row"><span class="fl">Aujourd'hui</span><span class="fv"><?=number_format($recetteAuj,0,',',' ')?> FCFA</span></div>
+          <div class="finance-row"><span class="fl">Paiements reçus</span><span class="fv"><?=$nbPayeesAuj?> aujourd'hui</span></div>
+          <div class="finance-row"><span class="fl">Impayés</span><span class="fv" style="color:#fca5a5"><?=number_format($totalImpaye,0,',',' ')?> FCFA</span></div>
+        </div>
+        <!-- Actions -->
+        <div class="card">
+          <div class="card-header"><h3>Actions rapides</h3></div>
+          <a class="qa-btn" href="#" onclick="openModal('modalFacture');return false;"><div class="qa-icon" style="background:var(--blue-bright)"><span class="material-icons">add_circle</span></div><div><div class="qa-label">Nouvelle facture</div><div class="qa-sub">Créer</div></div></a>
+          <a class="qa-btn" href="#"><div class="qa-icon" style="background:var(--danger)"><span class="material-icons">pending_actions</span></div><div><div class="qa-label">Impayés</div><div class="qa-sub"><?=$nbImpayees?> en attente</div></div></a>
+          <a class="qa-btn" href="#"><div class="qa-icon" style="background:var(--success)"><span class="material-icons">bar_chart</span></div><div><div class="qa-label">Rapport du jour</div><div class="qa-sub">Récapitulatif</div></div></a>
+          <a class="qa-btn" href="#"><div class="qa-icon" style="background:#7c3aed"><span class="material-icons">trending_up</span></div><div><div class="qa-label">Rapport mensuel</div><div class="qa-sub">Statistiques</div></div></a>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<!-- Modals -->
+<div class="modal-overlay" id="modalFacture">
+  <div class="modal">
+    <div class="modal-header"><h3>Nouvelle facture</h3><button class="modal-close" onclick="closeModal('modalFacture')"><span class="material-icons">close</span></button></div>
+    <div class="alert-msg" id="factureAlert"></div>
+    <div class="form-group"><label>Patient *</label><select id="fPatient" class="form-control"><option value="">Sélectionner...</option><?php foreach($pts as $pt) echo "<option value='{$pt['id']}'>{$pt['prenom']} {$pt['nom']}</option>";?></select></div>
+    <div class="form-group"><label>Montant total (FCFA) *</label><input type="number" id="fMontant" class="form-control" placeholder="0" min="0"></div>
+    <div style="display:flex;gap:12px;margin-top:16px">
+      <button class="btn-outline" onclick="closeModal('modalFacture')" style="flex:1">Annuler</button>
+      <button class="btn-primary" onclick="saveFacture()" style="flex:1" id="btnFacture"><span class="material-icons">receipt_long</span> Créer</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalEncaissement">
+  <div class="modal">
+    <div class="modal-header"><h3>Encaissement</h3><button class="modal-close" onclick="closeModal('modalEncaissement')"><span class="material-icons">close</span></button></div>
+    <div class="alert-msg" id="encaisseAlert"></div>
+    <div id="encaisseInfo" style="background:#f8faff;border-radius:8px;padding:12px;font-size:.83rem;color:var(--muted);margin-bottom:14px"></div>
+    <input type="hidden" id="encaisseFactureId">
+    <div class="form-group"><label>Montant encaissé (FCFA) *</label><input type="number" id="encaisseMontant" class="form-control" min="0"></div>
+    <div class="form-group"><label>Mode de paiement *</label>
+      <select id="encaisseMode" class="form-control">
+        <option value="especes">💵 Espèces</option>
+        <option value="carte">💳 Carte bancaire</option>
+        <option value="mobile_money">📱 Mobile Money</option>
+        <option value="cheque">📄 Chèque</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Référence</label><input type="text" id="encaisseRef" class="form-control" placeholder="N° transaction..."></div>
+    <div style="display:flex;gap:12px;margin-top:16px">
+      <button class="btn-outline" onclick="closeModal('modalEncaissement')" style="flex:1">Annuler</button>
+      <button class="btn-primary" onclick="saveEncaissement()" style="flex:1" id="btnEncaisse"><span class="material-icons">payments</span> Encaisser</button>
+    </div>
+  </div>
+</div>
+<script src="../assets/js/klinik.js"></script>
+<script>
+const user={nom:'<?=htmlspecialchars($user["nom"])?>',prenom:'<?=htmlspecialchars($user["prenom"])?>',email:'<?=htmlspecialchars($user["email"])?>',role:'<?=$user["role"]?>'};
+KlinikUI.fillUserInfo(user);KlinikUI.initSidebar();
+document.getElementById('topbarUserName').textContent=user.prenom+' '+user.nom;
+document.getElementById('topbarAvatar').textContent=(user.prenom[0]+user.nom[0]).toUpperCase();
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')}));
+function openEncaissement(id,montant,patient){
+  document.getElementById('encaisseFactureId').value=id;
+  document.getElementById('encaisseMontant').value=montant;
+  document.getElementById('encaisseInfo').innerHTML='<strong>Facture #'+String(id).padStart(4,'0')+'</strong> · '+patient+'<br>Montant : <strong>'+Number(montant).toLocaleString('fr-FR')+' FCFA</strong>';
+  openModal('modalEncaissement');
+}
+function saveFacture(){
+  const alertEl=document.getElementById('factureAlert');
+  const patient=document.getElementById('fPatient').value,montant=document.getElementById('fMontant').value;
+  alertEl.className='alert-msg';
+  if(!patient||!montant){alertEl.textContent='Veuillez remplir tous les champs.';alertEl.classList.add('show','alert-error');return;}
+  const btn=document.getElementById('btnFacture');btn.disabled=true;btn.innerHTML='<span class="material-icons" style="animation:spin .8s linear infinite">refresh</span>';
+  fetch('../api/factures.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create',patient_id:patient,montant_total:montant})})
+  .then(r=>r.json()).then(data=>{
+    if(data.success){alertEl.textContent='Facture créée !';alertEl.classList.add('show','alert-success');setTimeout(()=>{closeModal('modalFacture');location.reload()},1200);}
+    else{alertEl.textContent=data.message;alertEl.classList.add('show','alert-error');btn.disabled=false;btn.innerHTML='<span class="material-icons">receipt_long</span> Créer';}
+  });
+}
+function saveEncaissement(){
+  const alertEl=document.getElementById('encaisseAlert');
+  const factureId=document.getElementById('encaisseFactureId').value,montant=document.getElementById('encaisseMontant').value;
+  alertEl.className='alert-msg';
+  if(!montant){alertEl.textContent='Veuillez saisir le montant.';alertEl.classList.add('show','alert-error');return;}
+  const btn=document.getElementById('btnEncaisse');btn.disabled=true;btn.innerHTML='<span class="material-icons" style="animation:spin .8s linear infinite">refresh</span>';
+  fetch('../api/factures.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'encaisser',facture_id:factureId,montant_paye:montant,mode_paiement:document.getElementById('encaisseMode').value,reference:document.getElementById('encaisseRef').value})})
+  .then(r=>r.json()).then(data=>{
+    if(data.success){alertEl.textContent='Paiement enregistré !';alertEl.classList.add('show','alert-success');setTimeout(()=>{closeModal('modalEncaissement');location.reload()},1200);}
+    else{alertEl.textContent=data.message;alertEl.classList.add('show','alert-error');btn.disabled=false;btn.innerHTML='<span class="material-icons">payments</span> Encaisser';}
+  });
+}
+// Graphique recettes 6 mois
+new Chart(document.getElementById('chartMois').getContext('2d'),{
+  type:'bar',data:{labels:<?=json_encode($moisLabels)?>,datasets:[{label:'Recettes (FCFA)',data:<?=json_encode($moisVals)?>,backgroundColor:'rgba(37,99,235,.15)',borderColor:'#2563eb',borderWidth:2,borderRadius:6}]},
+  options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f0f4ff'},ticks:{callback:v=>v>=1000?v/1000+'K':v}},x:{grid:{display:false}}}}
+});
+// Graphique activité 7 jours
+new Chart(document.getElementById('chartJours').getContext('2d'),{
+  type:'line',data:{labels:<?=json_encode($jours)?>,datasets:[{label:'Recette (FCFA)',data:<?=json_encode($recettes)?>,fill:true,backgroundColor:'rgba(5,150,105,.08)',borderColor:'#059669',borderWidth:2,tension:.4,pointBackgroundColor:'#059669',pointRadius:4}]},
+  options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f0f4ff'},ticks:{callback:v=>v>=1000?v/1000+'K':v}},x:{grid:{display:false}}}}
+});
+// Graphique modes de paiement
+new Chart(document.getElementById('chartModes').getContext('2d'),{
+  type:'doughnut',data:{labels:['Espèces','Carte','Mobile Money','Chèque'],datasets:[{data:[<?=$nbEspeces?>,<?=$nbCarte?>,<?=$nbMobile?>,<?=$nbCheque?>],backgroundColor:['#2563eb','#0891b2','#059669','#d97706'],borderWidth:0}]},
+  options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}}},cutout:'58%'}
+});
+
+// ── Init Notifications & Messages ──
+KlinikNotifications.init();
+KlinikMessages.init();
+</script>
+</body>
+</html>
