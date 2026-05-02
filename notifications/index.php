@@ -129,7 +129,7 @@ $typeIcons = ['info'=>['info','#2563eb'],'success'=>['check_circle','#059669'],'
     </div>
   </header>
 
-  <main class="page-content" style="max-width: 1000px; margin: 0 auto; padding-top: 30px;">
+  <main class="page-content" style="max-width: 1000px; margin: 0 auto; padding-top: 100px;">
     <div class="page-header" style="margin-bottom:24px;display:flex;justify-content:space-between;align-items:center">
       <div>
         <h1>Notifications</h1>

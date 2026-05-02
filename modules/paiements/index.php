@@ -173,7 +173,7 @@ $statutColors = ['initie'=>'status-pending', 'en_cours'=>'status-pending', 'succ
     </div>
   </header>
 
-  <main class="page-content" style="max-width: 1200px; margin: 0 auto; padding-top: 20px;">
+  <main class="page-content" style="max-width: 1200px; margin: 0 auto; padding-top: 100px;">
     
     <div class="page-header" style="margin-bottom:24px">
       <h1>Paiements</h1>

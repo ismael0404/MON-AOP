@@ -20,3 +20,4 @@
 [2026-05-02 14:40:13] [DATABASE] SQLSTATE[HY000] [1049] Unknown database 'klinik_db'
 [2026-05-02 14:40:18] [NOTIFICATION] Erreur: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'klinik_db.notifications' doesn't exist
 [2026-05-02 14:40:18] [MESSAGE] Erreur: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'klinik_db.messages' doesn't exist
+[2026-05-02 14:55:15] [AUTH] Connexion réussie | Data: {"user_id":3,"role":"patient"}

@@ -7,33 +7,35 @@ $user = getUser();
 $pdo = getDB();
 $uid = (int)$user['id'];
 
-// Récupérer la liste des conversations (dernier message avec chaque utilisateur)
+// Récupérer tous les utilisateurs et le dernier message échangé (le cas échéant)
 $stmt = $pdo->prepare("
   SELECT 
-    CASE 
-      WHEN m.expediteur_id = ? THEN m.destinataire_id 
-      ELSE m.expediteur_id 
-    END as contact_id,
-    u.nom, u.prenom, u.role,
-    m.contenu, m.created_at, m.lu, m.expediteur_id, m.id as msg_id,
-    (SELECT COUNT(*) FROM messages WHERE expediteur_id = contact_id AND destinataire_id = ? AND lu = 0) as unread_count
-  FROM messages m
-  JOIN utilisateurs u ON u.id = CASE WHEN m.expediteur_id = ? THEN m.destinataire_id ELSE m.expediteur_id END
-  WHERE m.id IN (
-    SELECT MAX(id)
-    FROM messages
-    WHERE expediteur_id = ? OR destinataire_id = ?
-    GROUP BY LEAST(expediteur_id, destinataire_id), GREATEST(expediteur_id, destinataire_id)
-  )
-  ORDER BY m.created_at DESC
+      u.id as contact_id, u.nom, u.prenom, u.role, u.actif,
+      (
+          SELECT contenu FROM messages 
+          WHERE (expediteur_id = ? AND destinataire_id = u.id) OR (expediteur_id = u.id AND destinataire_id = ?)
+          ORDER BY created_at DESC LIMIT 1
+      ) as last_msg,
+      (
+          SELECT expediteur_id FROM messages 
+          WHERE (expediteur_id = ? AND destinataire_id = u.id) OR (expediteur_id = u.id AND destinataire_id = ?)
+          ORDER BY created_at DESC LIMIT 1
+      ) as last_msg_exp,
+      (
+          SELECT created_at FROM messages 
+          WHERE (expediteur_id = ? AND destinataire_id = u.id) OR (expediteur_id = u.id AND destinataire_id = ?)
+          ORDER BY created_at DESC LIMIT 1
+      ) as last_msg_time,
+      (
+          SELECT COUNT(*) FROM messages 
+          WHERE expediteur_id = u.id AND destinataire_id = ? AND lu = 0
+      ) as unread_count
+  FROM utilisateurs u
+  WHERE u.id != ? AND u.actif = 1
+  ORDER BY last_msg_time DESC, u.prenom ASC
 ");
-$stmt->execute([$uid, $uid, $uid, $uid, $uid]);
-$conversations = $stmt->fetchAll();
-
-// Rôles pour le sélecteur "Nouveau message"
-$contacts = $pdo->prepare("SELECT id, nom, prenom, role FROM utilisateurs WHERE id != ? AND actif = 1 ORDER BY prenom, nom");
-$contacts->execute([$uid]);
-$allContacts = $contacts->fetchAll();
+$stmt->execute([$uid, $uid, $uid, $uid, $uid, $uid, $uid, $uid]);
+$contactsList = $stmt->fetchAll();
 
 $roleColors = ['admin'=>'#7c3aed','medecin'=>'#0891b2','patient'=>'#2563eb','laborantin'=>'#059669','caissier'=>'#d97706'];
 ?>
@@ -131,44 +133,44 @@ $roleColors = ['admin'=>'#7c3aed','medecin'=>'#0891b2','patient'=>'#2563eb','lab
     </div>
   </header>
 
-  <main class="page-content" style="max-width: 1200px; margin: 0 auto; padding-top: 20px;">
+  <main class="page-content" style="max-width: 1200px; margin: 0 auto; padding-top: 100px;">
     
     <div class="chat-layout">
       <!-- Colonne Gauche -->
       <div class="chat-sidebar">
         <div class="cs-header">
-          <h3>
-            Conversations
-            <button class="action-btn" style="background:var(--blue-light);color:var(--blue-bright);width:28px;height:28px" onclick="document.getElementById('modalNewMsg').classList.add('open')" title="Nouveau message">
-              <span class="material-icons" style="font-size:16px">edit_square</span>
-            </button>
-          </h3>
+          <h3 style="margin-bottom:0;">Membres</h3>
+        </div>
+        <div style="padding:12px 20px; border-bottom:1px solid #eef0f6;">
           <div class="cs-search">
             <span class="material-icons">search</span>
-            <input type="text" id="searchConv" placeholder="Rechercher une discussion..." onkeyup="filterConversations()">
+            <input type="text" id="searchConv" placeholder="Chercher quelqu'un..." onkeyup="filterConversations()">
           </div>
         </div>
         <div class="cs-list" id="convList">
-          <?php if(empty($conversations)): ?>
-            <div style="padding:20px;text-align:center;color:var(--muted);font-size:.85rem">Aucune conversation</div>
-          <?php else: foreach($conversations as $c): 
+          <?php if(empty($contactsList)): ?>
+            <div style="padding:20px;text-align:center;color:var(--muted);font-size:.85rem">Aucun contact trouvé</div>
+          <?php else: foreach($contactsList as $c): 
              $rc = $roleColors[$c['role']] ?? '#94a3b8';
-             $isMe = ($c['expediteur_id'] == $uid);
+             $isMe = ($c['last_msg_exp'] == $uid);
              $unread = ($c['unread_count'] > 0);
           ?>
-          <div class="conv-item" data-id="<?= $c['contact_id'] ?>" data-name="<?= strtolower($c['prenom'].' '.$c['nom']) ?>" onclick="openChat(<?= $c['contact_id'] ?>, '<?= htmlspecialchars($c['prenom'].' '.$c['nom'], ENT_QUOTES) ?>', '<?= $c['role'] ?>', '<?= $rc ?>')">
-            <div class="conv-avatar">
+          <div class="conv-item" data-id="<?= $c['contact_id'] ?>" data-name="<?= strtolower($c['prenom'].' '.$c['nom'].' '.$c['role']) ?>" onclick="openChat(<?= $c['contact_id'] ?>, '<?= htmlspecialchars($c['prenom'].' '.$c['nom'], ENT_QUOTES) ?>', '<?= $c['role'] ?>', '<?= $rc ?>')">
+            <div class="conv-avatar" style="background:<?= $rc ?>20;color:<?= $rc ?>">
               <?= strtoupper($c['prenom'][0].$c['nom'][0]) ?>
-              <div class="conv-role-dot" style="background:<?= $rc ?>" title="Rôle: <?= ucfirst($c['role']) ?>"></div>
             </div>
             <div class="conv-content">
               <div class="conv-top">
                 <div class="conv-name"><?= htmlspecialchars($c['prenom'].' '.$c['nom']) ?></div>
-                <div class="conv-time"><?= date('d/m', strtotime($c['created_at'])) ?></div>
+                <div class="conv-time"><?= $c['last_msg_time'] ? date('d/m', strtotime($c['last_msg_time'])) : '' ?></div>
               </div>
               <div class="conv-bottom">
                 <div class="conv-msg <?= $unread ? 'unread' : '' ?>">
-                  <?= $isMe ? 'Vous: ' : '' ?><?= htmlspecialchars($c['contenu']) ?>
+                  <?php if($c['last_msg']): ?>
+                    <?= $isMe ? 'Vous: ' : '' ?><?= htmlspecialchars($c['last_msg']) ?>
+                  <?php else: ?>
+                    <span style="color:#cbd5e1;font-style:italic">Nouvelle discussion</span>
+                  <?php endif; ?>
                 </div>
                 <?php if($unread): ?>
                   <div class="unread-badge"><?= $c['unread_count'] ?></div>
@@ -192,31 +194,7 @@ $roleColors = ['admin'=>'#7c3aed','medecin'=>'#0891b2','patient'=>'#2563eb','lab
   </main>
 </div>
 
-<!-- Modal Nouveau Message -->
-<div class="modal-overlay" id="modalNewMsg">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>Nouvelle Conversation</h3>
-      <button class="modal-close" onclick="document.getElementById('modalNewMsg').classList.remove('open')"><span class="material-icons">close</span></button>
-    </div>
-    <div class="form-group" style="margin-bottom:16px">
-      <label style="display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase">Destinataire</label>
-      <select id="newMsgContact" class="form-control" style="width:100%;padding:10px;border-radius:8px;border:1px solid #eef0f6">
-        <option value="">Sélectionner un contact...</option>
-        <?php foreach($allContacts as $ac): ?>
-          <option value="<?= $ac['id'] ?>" data-role="<?= $ac['role'] ?>" data-name="<?= htmlspecialchars($ac['prenom'].' '.$ac['nom'], ENT_QUOTES) ?>">
-            <?= htmlspecialchars($ac['prenom'].' '.$ac['nom']) ?> (<?= ucfirst($ac['role']) ?>)
-          </option>
-        <?php endforeach; ?>
-      </select>
-    </div>
-    <div class="form-group" style="margin-bottom:16px">
-      <label style="display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase">Message</label>
-      <textarea id="newMsgText" class="form-control" style="width:100%;padding:10px;border-radius:8px;border:1px solid #eef0f6;min-height:100px;resize:vertical" placeholder="Tapez votre message ici..."></textarea>
-    </div>
-    <button class="btn-primary" style="width:100%" onclick="startNewConversation()">Commencer la discussion</button>
-  </div>
-</div>
+
 
 <script src="../../assets/js/klinik.js"></script>
 <script>
@@ -317,24 +295,8 @@ async function sendMessage() {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({action: 'send', destinataire_id: currentContactId, contenu: text})
     });
+    // Rafraichir le chat actif
     loadMessages();
-  } catch(e) {}
-}
-
-async function startNewConversation() {
-  const select = document.getElementById('newMsgContact');
-  const contactId = select.value;
-  const text = document.getElementById('newMsgText').value.trim();
-  if(!contactId || !text) { alert("Veuillez remplir tous les champs"); return; }
-  
-  try {
-    await fetch('../../api/messages.php', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({action: 'send', destinataire_id: contactId, contenu: text})
-    });
-    
-    document.getElementById('modalNewMsg').classList.remove('open');
-    location.reload(); // Recharger pour voir la conversation dans la liste de gauche
   } catch(e) {}
 }
 </script>

@@ -17,9 +17,9 @@ try {
     // Envoyer un message
     if($action==='send'){
         $destId=(int)($input['destinataire_id']??0);
-        $sujet=cleanInput($input['sujet']??'');
+        $sujet='';
         $contenu=cleanInput($input['contenu']??'');
-        $parentId=!empty($input['parent_id'])?(int)$input['parent_id']:null;
+        $parentId=null;
         if(!$destId||!$contenu)jsonResponse(false,'Destinataire et message requis.');
         if($destId===$uid)jsonResponse(false,'Vous ne pouvez pas vous envoyer un message.');
         // Vérifier destinataire
@@ -58,21 +58,18 @@ try {
         jsonResponse(true,'OK',['messages'=>$stmt->fetchAll()]);
     }
 
-    // Thread (fil de discussion)
+    // Thread (fil de discussion entre connecte et un contact)
     if($action==='thread'){
-        $parentId=(int)($input['parent_id']??$_GET['parent_id']??0);
-        if(!$parentId)jsonResponse(false,'ID du message parent requis.');
-        // Vérifier accès
-        $s=$pdo->prepare("SELECT * FROM messages WHERE id=? AND (expediteur_id=? OR destinataire_id=?)");
-        $s->execute([$parentId,$uid,$uid]);
-        if(!$s->fetch())jsonResponse(false,'Message introuvable.');
+        $contactId=(int)($input['contact_id']??$_GET['contact_id']??0);
+        if(!$contactId)jsonResponse(false,'Contact ID requis.');
+        
         $stmt=$pdo->prepare("
             SELECT m.*, u.nom AS exp_nom, u.prenom AS exp_prenom
             FROM messages m JOIN utilisateurs u ON m.expediteur_id=u.id
-            WHERE m.id=? OR m.parent_id=?
+            WHERE (m.expediteur_id=? AND m.destinataire_id=?) OR (m.expediteur_id=? AND m.destinataire_id=?)
             ORDER BY m.created_at ASC
         ");
-        $stmt->execute([$parentId,$parentId]);
+        $stmt->execute([$uid,$contactId,$contactId,$uid]);
         jsonResponse(true,'OK',['messages'=>$stmt->fetchAll()]);
     }
 
