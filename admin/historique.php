@@ -22,8 +22,8 @@ $nbAuj=(int)$pdo->query("SELECT COUNT(*) FROM rendez_vous WHERE DATE(date_rdv)=C
 $nbAtt=(int)$pdo->query("SELECT COUNT(*) FROM rendez_vous WHERE statut='en_attente'")->fetchColumn();
 $nbConf=(int)$pdo->query("SELECT COUNT(*) FROM rendez_vous WHERE statut='confirme'")->fetchColumn();
 $nbAnn=(int)$pdo->query("SELECT COUNT(*) FROM rendez_vous WHERE statut='annule'")->fetchColumn();
-$statutColors=['en_attente'=>'status-pending','confirme'=>'status-active','termine'=>'status-done','annule'=>'status-inactive'];
-$statutLabels=['en_attente'=>'En attente','confirme'=>'Confirmé','termine'=>'Terminé','annule'=>'Annulé'];
+$statutColors=['en_attente'=>'status-pending','en_attente_paiement'=>'status-warning','confirme'=>'status-active','termine'=>'status-done','annule'=>'status-inactive'];
+$statutLabels=['en_attente'=>'En attente','en_attente_paiement'=>'En attente paiement','confirme'=>'Confirmé','termine'=>'Terminé','annule'=>'Annulé'];
 
 ?>
 <!DOCTYPE html>

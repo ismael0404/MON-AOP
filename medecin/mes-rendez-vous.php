@@ -30,8 +30,8 @@ $s=$pdo->prepare("SELECT COUNT(*) FROM rendez_vous WHERE medecin_id=? AND DATE(d
 $s=$pdo->prepare("SELECT COUNT(*) FROM rendez_vous WHERE medecin_id=? AND statut='en_attente'");$s->execute([$medecinId]);$nbAtt=(int)$s->fetchColumn();
 $s=$pdo->prepare("SELECT COUNT(*) FROM rendez_vous WHERE medecin_id=? AND statut='confirme'");$s->execute([$medecinId]);$nbConf=(int)$s->fetchColumn();
 
-$statutColors=['en_attente'=>'status-pending','confirme'=>'status-active','termine'=>'status-done','annule'=>'status-inactive'];
-$statutLabels=['en_attente'=>'En attente','confirme'=>'Confirmé','termine'=>'Terminé','annule'=>'Annulé'];
+$statutColors=['en_attente'=>'status-pending','en_attente_paiement'=>'status-warning','confirme'=>'status-active','termine'=>'status-done','annule'=>'status-inactive'];
+$statutLabels=['en_attente'=>'En attente','en_attente_paiement'=>'En attente paiement','confirme'=>'Confirmé','termine'=>'Terminé','annule'=>'Annulé'];
 
 // Patients pour modal consultation rapide
 $pts=$pdo->query("SELECT p.id,u.nom,u.prenom FROM patients p JOIN utilisateurs u ON p.utilisateur_id=u.id ORDER BY u.nom")->fetchAll();

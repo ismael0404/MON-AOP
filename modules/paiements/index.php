@@ -328,40 +328,57 @@ $statutColors = ['initie'=>'status-pending', 'en_cours'=>'status-pending', 'succ
       <button class="modal-close" onclick="document.getElementById('modalSimulate').classList.remove('open')"><span class="material-icons">close</span></button>
     </div>
     
-    <div class="form-group" style="margin-bottom:16px">
-      <label style="display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase">Facture Impayée</label>
-      <select id="simFacture" class="form-control" style="width:100%;padding:10px;border-radius:8px;border:1px solid #eef0f6" onchange="updateSimAmount()">
-        <option value="">Sélectionner une facture...</option>
-        <?php foreach($facturesImpayees as $f): ?>
-          <option value="<?= $f['id'] ?>" data-amount="<?= $f['montant_total'] ?>">Facture #<?= $f['id'] ?> - <?= date('d/m/Y', strtotime($f['date_facture'])) ?> (<?= number_format($f['montant_total'],0,',',' ') ?> F)</option>
-        <?php endforeach; ?>
-      </select>
+    <!-- Étape 1 : Formulaire -->
+    <div id="simFormStep">
+      <div class="form-group" style="margin-bottom:16px">
+        <label style="display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase">Facture Impayée</label>
+        <select id="simFacture" class="form-control" style="width:100%;padding:10px;border-radius:8px;border:1px solid #eef0f6" onchange="updateSimAmount()">
+          <option value="">Sélectionner une facture...</option>
+          <?php foreach($facturesImpayees as $f): ?>
+            <option value="<?= $f['id'] ?>" data-amount="<?= $f['montant_total'] ?>">Facture #<?= $f['id'] ?> - <?= date('d/m/Y', strtotime($f['date_facture'])) ?> (<?= number_format($f['montant_total'],0,',',' ') ?> F)</option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label style="display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase">Opérateur</label>
+        <select id="simProvider" class="form-control" style="width:100%;padding:10px;border-radius:8px;border:1px solid #eef0f6">
+          <option value="wave">Wave</option>
+          <option value="orange_money">Orange Money</option>
+          <option value="mtn_momo">MTN MoMo</option>
+          <option value="moov_money">Moov Money</option>
+          <option value="cash">Espèces (Dépôt)</option>
+        </select>
+      </div>
+      
+      <div class="form-group" style="margin-bottom:16px">
+        <label style="display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase">Numéro de téléphone</label>
+        <input type="text" id="simPhone" class="form-control" placeholder="Ex: 0700000000" style="width:100%;padding:10px;border-radius:8px;border:1px solid #eef0f6">
+      </div>
+      
+      <div class="form-group" style="margin-bottom:24px">
+        <label style="display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase">Montant à payer (FCFA)</label>
+        <input type="number" id="simAmount" class="form-control" readonly style="width:100%;padding:10px;border-radius:8px;border:1px solid #eef0f6;background:#f8f9fc;font-weight:700">
+      </div>
+
+      <button class="btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px" onclick="startSimulation()">
+        <span class="material-icons">lock</span> Lancer le paiement
+      </button>
     </div>
 
-    <div class="form-group" style="margin-bottom:16px">
-      <label style="display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase">Opérateur</label>
-      <select id="simProvider" class="form-control" style="width:100%;padding:10px;border-radius:8px;border:1px solid #eef0f6">
-        <option value="wave">Wave</option>
-        <option value="orange_money">Orange Money</option>
-        <option value="mtn_momo">MTN MoMo</option>
-        <option value="moov_money">Moov Money</option>
-        <option value="cash">Espèces (Dépôt)</option>
-      </select>
+    <!-- Étape 2 : OTP -->
+    <div id="simOtpStep" style="display:none;text-align:center;padding:20px 0">
+      <div class="material-icons" style="font-size:48px;color:var(--blue-bright);margin-bottom:12px">sms</div>
+      <h3 style="font-family:'Oswald';font-size:1.2rem;margin-bottom:8px">Validation OTP</h3>
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:20px">Saisissez le code reçu par SMS (Simulation : 0404)</p>
+      
+      <input type="text" id="simOtpInput" maxlength="4" placeholder="••••" style="width:120px;text-align:center;font-size:1.8rem;letter-spacing:8px;padding:10px;border-radius:8px;border:2px solid var(--blue-bright);outline:none;font-family:monospace;margin-bottom:20px">
+      
+      <button class="btn-primary" style="width:100%" onclick="verifyOtp()">
+        Confirmer le paiement
+      </button>
+      <button class="btn-link" style="margin-top:12px;font-size:.8rem;color:var(--muted)" onclick="location.reload()">Annuler</button>
     </div>
-    
-    <div class="form-group" style="margin-bottom:16px">
-      <label style="display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase">Numéro de téléphone</label>
-      <input type="text" id="simPhone" class="form-control" placeholder="Ex: 0700000000" style="width:100%;padding:10px;border-radius:8px;border:1px solid #eef0f6">
-    </div>
-    
-    <div class="form-group" style="margin-bottom:24px">
-      <label style="display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase">Montant à payer (FCFA)</label>
-      <input type="number" id="simAmount" class="form-control" readonly style="width:100%;padding:10px;border-radius:8px;border:1px solid #eef0f6;background:#f8f9fc;font-weight:700">
-    </div>
-
-    <button class="btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px" onclick="startSimulation()">
-      <span class="material-icons">lock</span> Lancer le paiement
-    </button>
   </div>
 </div>
 <?php endif; ?>
@@ -455,6 +472,8 @@ function updateSimAmount() {
     }
 }
 
+let currentTxId = null;
+
 async function startSimulation() {
     const factureId = document.getElementById('simFacture').value;
     const provider = document.getElementById('simProvider').value;
@@ -466,7 +485,7 @@ async function startSimulation() {
         return;
     }
 
-    // 1. Initier l'appel AJAX et afficher spinner
+    // Afficher spinner
     document.getElementById('simSpinner').style.display = 'flex';
     
     try {
@@ -476,54 +495,73 @@ async function startSimulation() {
         });
         const dInit = await resInit.json();
         
+        document.getElementById('simSpinner').style.display = 'none';
+
         if(!dInit.success) {
-            document.getElementById('simSpinner').style.display = 'none';
             alert(dInit.message);
             return;
         }
 
-        const txId = dInit.data.transaction_id;
+        currentTxId = dInit.transaction_id;
 
-        // 2. Simuler l'attente du réseau (3 secondes)
-        setTimeout(async () => {
-            // 3. Callback final
-            const resCall = await fetch('../../api/paiements.php', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ action: 'simulate_callback', transaction_id: txId })
-            });
-            const dCall = await resCall.json();
-            
-            document.getElementById('simSpinner').style.display = 'none';
-            const resOverlay = document.getElementById('simResult');
-            const icon = document.getElementById('simIcon');
-            const title = document.getElementById('simTitle');
-            const text = document.getElementById('simText');
-            
-            resOverlay.style.display = 'flex';
-            
-            if(dCall.data.statut === 'succes') {
-                icon.innerHTML = 'check_circle';
-                icon.style.color = 'var(--success)';
-                title.innerText = 'Paiement Confirmé !';
-                text.innerText = 'Votre transaction a été validée avec succès. Un reçu a été généré.';
-                
-                // Afficher bouton reçu
-                const btn = document.getElementById('simReceiptBtn');
-                btn.style.display = 'block';
-                btn.href = 'recu.php?tx=' + txId;
-                
-            } else {
-                icon.innerHTML = 'error';
-                icon.style.color = 'var(--danger)';
-                title.innerText = 'Paiement Échoué';
-                text.innerText = dCall.message || 'La transaction a été rejetée par l\'opérateur.';
-            }
-            
-        }, 3000);
+        // Passage à l'étape OTP
+        document.getElementById('simFormStep').style.display = 'none';
+        document.getElementById('simOtpStep').style.display = 'block';
         
     } catch(e) {
         document.getElementById('simSpinner').style.display = 'none';
-        alert("Erreur réseau durant la simulation.");
+        alert("Erreur réseau durant l'initiation.");
+    }
+}
+
+async function verifyOtp() {
+    const otp = document.getElementById('simOtpInput').value;
+    if(!otp) { alert("Saisissez l'OTP."); return; }
+
+    document.getElementById('simSpinner').style.display = 'flex';
+
+    try {
+        const res = await fetch('../../api/paiements.php', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: 'verify_otp', transaction_id: currentTxId, otp: otp })
+        });
+        const d = await res.json();
+        
+        document.getElementById('simSpinner').style.display = 'none';
+        
+        const resOverlay = document.getElementById('simResult');
+        const icon = document.getElementById('simIcon');
+        const title = document.getElementById('simTitle');
+        const text = document.getElementById('simText');
+        
+        resOverlay.style.display = 'flex';
+        document.getElementById('simOtpStep').style.display = 'none';
+
+        if(d.success) {
+            icon.innerHTML = 'check_circle';
+            icon.style.color = 'var(--success)';
+            title.innerText = 'Paiement Réussi !';
+            text.innerText = 'Votre transaction a été validée avec succès.';
+            
+            // Afficher bouton reçu si possible
+            const btn = document.getElementById('simReceiptBtn');
+            btn.style.display = 'block';
+            btn.href = 'recu.php?tx=' + currentTxId;
+        } else {
+            icon.innerHTML = 'error';
+            icon.style.color = 'var(--danger)';
+            title.innerText = 'Échec du Paiement';
+            text.innerText = d.message;
+            
+            // Bouton retour au formulaire si erreur
+            setTimeout(() => {
+                resOverlay.style.display = 'none';
+                document.getElementById('simOtpStep').style.display = 'block';
+            }, 2000);
+        }
+    } catch(e) {
+        document.getElementById('simSpinner').style.display = 'none';
+        alert("Erreur réseau durant la vérification.");
     }
 }
 <?php endif; ?>

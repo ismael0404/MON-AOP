@@ -14,6 +14,9 @@ define('DB_USER',     'root');
 define('DB_PASSWORD', '');
 define('DB_CHARSET',  'utf8mb4');
 
+// ── Tarifs ──
+define('CONSULTATION_FEE', 10000); // Montant par défaut des frais de consultation (en FCFA)
+
 // ── Chemins absolus ──
 define('ROOT_PATH', dirname(__DIR__) . DIRECTORY_SEPARATOR);
 define('ROOT_URL',  '/MON AOP/');

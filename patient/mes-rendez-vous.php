@@ -33,8 +33,8 @@ $nbImpayees = (int)$pdo->prepare("SELECT COUNT(*) FROM factures WHERE patient_id
 $si=$pdo->prepare("SELECT COUNT(*) FROM factures WHERE patient_id=? AND statut='impayee'");$si->execute([$patientId]);$nbImpayees=(int)$si->fetchColumn();
 
 $meds = $pdo->query("SELECT m.id,u.nom,u.prenom,m.specialite FROM medecins m JOIN utilisateurs u ON m.utilisateur_id=u.id WHERE u.actif=1 ORDER BY u.nom")->fetchAll();
-$statutColors=['en_attente'=>'status-pending','confirme'=>'status-active','termine'=>'status-done','annule'=>'status-inactive'];
-$statutLabels=['en_attente'=>'En attente','confirme'=>'Confirmé','termine'=>'Terminé','annule'=>'Annulé'];
+$statutColors=['en_attente'=>'status-pending','en_attente_paiement'=>'status-warning','confirme'=>'status-active','termine'=>'status-done','annule'=>'status-inactive'];
+$statutLabels=['en_attente'=>'En attente','en_attente_paiement'=>'En attente paiement','confirme'=>'Confirmé','termine'=>'Terminé','annule'=>'Annulé'];
 ?>
 <!DOCTYPE html>
 <html lang="fr">

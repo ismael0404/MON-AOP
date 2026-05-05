@@ -103,6 +103,44 @@ function createNotification(PDO $pdo, int $userId, string $titre, string $messag
 }
 
 /**
+ * Envoie un message interne.
+ */
+function createMessage(PDO $pdo, int $expediteurId, int $destinataireId, string $sujet, string $contenu): bool {
+    try {
+        $stmt = $pdo->prepare("INSERT INTO messages (expediteur_id, destinataire_id, sujet, contenu) VALUES (?, ?, ?, ?)");
+        return $stmt->execute([$expediteurId, $destinataireId, $sujet, $contenu]);
+    } catch (PDOException $e) {
+        if (function_exists('logError')) {
+            logError('MESSAGE', 'Erreur envoi message interne: ' . $e->getMessage());
+        }
+        return false;
+    }
+}
+
+/**
+ * Envoie un email (Simulation ou via mail() / PHPMailer).
+ */
+function sendEmail(string $to, string $subject, string $message): bool {
+    // Configuration des headers pour maximiser la délivrabilité
+    $headers = "From: KLINIK Hospital <noreply@klinik.ci>\r\n";
+    $headers .= "Reply-To: contact@klinik.ci\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $headers .= "X-Mailer: PHP/" . phpversion();
+    
+    // Tentative d'envoi réel
+    $sent = @mail($to, $subject, $message, $headers);
+
+    // Logging pour débogage
+    if (function_exists('logError')) {
+        $status = $sent ? 'SUCCÈS' : 'ÉCHEC';
+        logError('EMAIL_LOG', "Envoi vers {$to} | Statut: {$status} | Sujet: {$subject}");
+    }
+
+    return $sent;
+}
+
+/**
  * Crée une notification pour tous les utilisateurs d'un rôle donné.
  */
 function notifyRole(PDO $pdo, string $role, string $titre, string $message, string $type = 'info', ?string $lien = null): void {

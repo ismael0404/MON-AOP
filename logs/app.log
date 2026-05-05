@@ -21,3 +21,42 @@
 [2026-05-02 14:40:18] [NOTIFICATION] Erreur: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'klinik_db.notifications' doesn't exist
 [2026-05-02 14:40:18] [MESSAGE] Erreur: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'klinik_db.messages' doesn't exist
 [2026-05-02 14:55:15] [AUTH] Connexion réussie | Data: {"user_id":3,"role":"patient"}
+[2026-05-04 21:42:15] [AUTH] Connexion réussie | Data: {"user_id":3,"role":"patient"}
+[2026-05-04 21:50:01] [AUTH] Connexion réussie | Data: {"user_id":2,"role":"medecin"}
+[2026-05-04 21:52:29] [AUTH] Connexion réussie | Data: {"user_id":1,"role":"admin"}
+[2026-05-04 21:53:30] [AUTH] Connexion réussie | Data: {"user_id":3,"role":"patient"}
+[2026-05-04 21:57:55] [AUTH] Connexion réussie | Data: {"user_id":1,"role":"admin"}
+[2026-05-04 21:59:50] [AUTH] Connexion réussie | Data: {"user_id":3,"role":"patient"}
+[2026-05-04 22:11:01] [AUTH] Inscription réussie | Data: {"user_id":6}
+[2026-05-04 22:11:45] [AUTH] Connexion réussie | Data: {"user_id":1,"role":"admin"}
+[2026-05-04 22:11:59] [EMAIL_SIMULATION] Email vers ismaelnaon04@gmail.com | Sujet: Confirmation et Paiement de votre rendez-vous | Message: Bonjour naon ismael,
+
+Nous avons le plaisir de vous informer que votre rendez-vous prévu pour le 24/05/2026 à 04:16 est désormais CONFIRMÉ.
+
+⚠️ ÉTAPE IMPORTANTE : Pour valider définitivement votre passage, vous devez régler les frais de consultation s'élevant à 10 000 FCFA.
+
+Vous pouvez effectuer ce règlement en toute sécurité via Wave, Orange Money ou MTN Mobile Money directement depuis votre espace patient dans la rubrique 'Mes Factures'.
+
+Lien vers vos factures : mes-factures.php
+
+Veuillez vous présenter 15 minutes avant l'heure prévue.
+
+Cordialement,
+L'administration KLINIK
+[2026-05-04 22:13:20] [AUTH] Tentative de connexion échouée | Data: {"email":"ismaelnaon4@gmail.com"}
+[2026-05-04 22:13:38] [AUTH] Tentative de connexion échouée | Data: {"email":"ismaelnaon4@gmail.com"}
+[2026-05-04 22:13:40] [AUTH] Tentative de connexion échouée | Data: {"email":"ismaelnaon4@gmail.com"}
+[2026-05-04 22:13:41] [AUTH] Tentative de connexion échouée | Data: {"email":"ismaelnaon4@gmail.com"}
+[2026-05-04 22:13:46] [AUTH] Connexion réussie | Data: {"user_id":6,"role":"patient"}
+[2026-05-04 22:22:51] [AUTH] Connexion réussie | Data: {"user_id":1,"role":"admin"}
+[2026-05-04 22:23:05] [EMAIL_LOG] Envoi vers ismaelnaon04@gmail.com | Statut: ÉCHEC | Sujet: Confirmation et Paiement de votre rendez-vous
+[2026-05-04 22:26:48] [AUTH] Connexion réussie | Data: {"user_id":6,"role":"patient"}
+[2026-05-05 00:07:47] [AUTH] Connexion réussie | Data: {"user_id":1,"role":"admin"}
+[2026-05-05 00:09:27] [AUTH] Connexion réussie | Data: {"user_id":2,"role":"medecin"}
+[2026-05-05 14:43:30] [AUTH] Tentative de connexion échouée | Data: {"email":"ismaelnaon4@gmail.com"}
+[2026-05-05 14:43:35] [AUTH] Connexion réussie | Data: {"user_id":1,"role":"admin"}
+[2026-05-05 14:43:59] [EMAIL_LOG] Envoi vers ismaelnaon04@gmail.com | Statut: ÉCHEC | Sujet: Confirmation et Paiement de votre rendez-vous
+[2026-05-05 14:44:01] [EMAIL_LOG] Envoi vers ismaelnaon04@gmail.com | Statut: ÉCHEC | Sujet: Confirmation et Paiement de votre rendez-vous
+[2026-05-05 14:44:03] [EMAIL_LOG] Envoi vers ismaelnaon04@gmail.com | Statut: ÉCHEC | Sujet: Confirmation et Paiement de votre rendez-vous
+[2026-05-05 14:45:28] [AUTH] Connexion réussie | Data: {"user_id":6,"role":"patient"}
+[2026-05-05 16:16:46] [AUTH] Connexion réussie | Data: {"user_id":2,"role":"medecin"}

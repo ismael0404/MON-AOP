@@ -45,6 +45,9 @@ try {
     // ═══════════════════════════════
     //  INITIER un paiement Mobile Money
     // ═══════════════════════════════
+    // ═══════════════════════════════
+    //  INITIER un paiement Mobile Money
+    // ═══════════════════════════════
     if($action==='initier'){
         checkAuth(['caissier','admin','patient']);
         $user=getUser();
@@ -71,21 +74,78 @@ try {
         $stmt->execute([$factureId,$provider,$telephone,$montant,$txId]);
         $pmId=(int)$pdo->lastInsertId();
 
-        // Simuler l'appel API (mode mock/sandbox)
-        $apiResponse = simulateProviderCall($provider,$telephone,$montant,$txId);
+        // Mode Simulation : On demande l'OTP immédiatement
+        jsonResponse(true,'Paiement initié. Veuillez saisir le code OTP envoyé au ' . $telephone, [
+            'transaction_id' => $txId, 
+            'pm_id' => $pmId,
+            'status' => 'pending_otp'
+        ]);
+    }
 
-        // Mettre à jour le statut
-        $newStatut=$apiResponse['success']?'en_cours':'echec';
-        $pdo->prepare("UPDATE paiements_mobile SET statut=?,webhook_data=? WHERE id=?")
-            ->execute([$newStatut,json_encode($apiResponse),$pmId]);
+    // ═══════════════════════════════
+    //  VÉRIFIER l'OTP (Simulation)
+    // ═══════════════════════════════
+    if($action==='verify_otp'){
+        checkAuth(['patient','caissier','admin']);
+        $txId = cleanInput($input['transaction_id'] ?? '');
+        $otp  = cleanInput($input['otp'] ?? '');
 
-        if(!$apiResponse['success']){
-            logError('PAIEMENT','Échec initiation '.$provider,['facture'=>$factureId,'error'=>$apiResponse['error']??'']);
-            jsonResponse(false,'Échec de l\'initiation du paiement: '.($apiResponse['error']??'Erreur provider.'));
+        if(!$txId || !$otp) jsonResponse(false, 'Transaction ID et OTP requis.');
+
+        if($otp !== '0404') {
+            jsonResponse(false, 'Code OTP incorrect. Veuillez réessayer.');
         }
 
-        logError('PAIEMENT','Paiement initié',['provider'=>$provider,'facture'=>$factureId,'tx'=>$txId]);
-        jsonResponse(true,'Paiement initié. Confirmez sur votre téléphone.',['transaction_id'=>$txId,'pm_id'=>$pmId]);
+        $s=$pdo->prepare("SELECT * FROM paiements_mobile WHERE transaction_id=?");$s->execute([$txId]);
+        $pm=$s->fetch();
+        if(!$pm) jsonResponse(false, 'Transaction introuvable.');
+        if($pm['statut'] !== 'initie') jsonResponse(false, 'Cette transaction ne peut plus être validée.');
+
+        $factureId = $pm['facture_id'];
+        
+        $pdo->beginTransaction();
+        try {
+            // 1. Succès Paiement Mobile
+            $pdo->prepare("UPDATE paiements_mobile SET statut='succes' WHERE id=?")->execute([$pm['id']]);
+            
+            // 2. Insérer dans paiements officiels
+            $pdo->prepare("INSERT INTO paiements(facture_id, caissier_id, montant_paye, mode_paiement, reference) VALUES(?, ?, ?, 'mobile_money', ?)")
+                ->execute([$factureId, 1, $pm['montant'], $txId]);
+            $paiementId = $pdo->lastInsertId();
+            
+            // 3. Mettre à jour facture
+            $pdo->prepare("UPDATE factures SET statut='payee' WHERE id=?")->execute([$factureId]);
+            
+            // 4. SI c'est lié à un RDV, on CONFIRME le RDV
+            $sf = $pdo->prepare("SELECT rendez_vous_id, patient_id FROM factures WHERE id=?");
+            $sf->execute([$factureId]);
+            $fData = $sf->fetch();
+            
+            if($fData && $fData['rendez_vous_id']) {
+                $pdo->prepare("UPDATE rendez_vous SET statut='confirme' WHERE id=?")->execute([$fData['rendez_vous_id']]);
+                
+                // Notification RDV Confirmé
+                $up=$pdo->prepare("SELECT utilisateur_id FROM patients WHERE id=?");$up->execute([$fData['patient_id']]);
+                $uid=$up->fetchColumn();
+                if($uid) {
+                    createNotification($pdo, $uid, 'Rendez-vous Confirmé', "Votre paiement a été reçu. Votre rendez-vous est maintenant officiellement confirmé.", 'success', 'mes-rendez-vous.php');
+                }
+            } else if($fData) {
+                // Notification Paiement Simple
+                $up=$pdo->prepare("SELECT utilisateur_id FROM patients WHERE id=?");$up->execute([$fData['patient_id']]);
+                $uid=$up->fetchColumn();
+                if($uid) {
+                    createNotification($pdo, $uid, 'Paiement Réussi', "Votre paiement de {$pm['montant']}F a été validé.", 'success', 'mes-factures.php');
+                }
+            }
+
+            $pdo->commit();
+            jsonResponse(true, 'Paiement réussi et validé avec succès !', ['statut'=>'succes']);
+        } catch(Exception $e) {
+            $pdo->rollBack();
+            logError('PAIEMENT', 'Erreur transaction: '.$e->getMessage());
+            jsonResponse(false, 'Erreur lors de la validation du paiement.');
+        }
     }
 
     // ═══════════════════════════════
@@ -102,52 +162,10 @@ try {
     }
 
     // ═══════════════════════════════
-    //  SIMULATE CALLBACK
+    //  SIMULATE CALLBACK (Obsolète avec le nouveau système OTP)
     // ═══════════════════════════════
     if($action==='simulate_callback'){
-        checkAuth(['patient','caissier','admin']);
-        $txId=cleanInput($input['transaction_id']??'');
-        if(!$txId)jsonResponse(false,'Transaction ID requis.');
-        
-        $s=$pdo->prepare("SELECT * FROM paiements_mobile WHERE transaction_id=?");$s->execute([$txId]);
-        $pm=$s->fetch();
-        if(!$pm)jsonResponse(false,'Transaction introuvable.');
-        if($pm['statut']!=='en_cours')jsonResponse(false,'Statut invalide pour simulation.');
-
-        $factureId = $pm['facture_id'];
-        
-        // Simuler succès (ou 10% d'échec)
-        $success = rand(1,10) <= 9;
-        
-        if($success) {
-            $pdo->prepare("UPDATE paiements_mobile SET statut='succes' WHERE id=?")->execute([$pm['id']]);
-            // Insérer dans paiements officiels
-            $pdo->prepare("INSERT INTO paiements(facture_id, caissier_id, montant_paye, mode_paiement, reference) VALUES(?, ?, ?, 'mobile_money', ?)")
-                ->execute([$factureId, 1 /* system/auto */, $pm['montant'], $txId]);
-            $paiementId = $pdo->lastInsertId();
-            
-            // Mettre à jour facture
-            $pdo->prepare("UPDATE factures SET statut='payee' WHERE id=?")->execute([$factureId]);
-            
-            // Récupérer le patient
-            $fp=$pdo->prepare("SELECT patient_id FROM factures WHERE id=?");$fp->execute([$factureId]);
-            $pid=$fp->fetchColumn();
-            
-            if($pid) {
-                $up=$pdo->prepare("SELECT utilisateur_id FROM patients WHERE id=?");$up->execute([$pid]);
-                $uid=$up->fetchColumn();
-                if($uid) {
-                    createNotification($pdo, $uid, 'Paiement Confirmé', "Votre paiement de {$pm['montant']}F (Facture #{$factureId}) a été validé.", 'success');
-                }
-            }
-            // Notifier admin (user 1 par ex)
-            createNotification($pdo, 1, 'Nouveau Paiement', "Paiement de {$pm['montant']}F reçu via {$pm['provider']}.", 'info');
-            
-            jsonResponse(true,'Paiement réussi.', ['statut'=>'succes', 'paiement_id'=>$paiementId]);
-        } else {
-            $pdo->prepare("UPDATE paiements_mobile SET statut='echec', erreur='Fonds insuffisants ou rejet réseau' WHERE id=?")->execute([$pm['id']]);
-            jsonResponse(true,'Paiement échoué.', ['statut'=>'echec']);
-        }
+        jsonResponse(false, 'Action obsolète. Utilisez verify_otp.');
     }
 
     // ═══════════════════════════════

@@ -135,7 +135,10 @@ $typeIcons = ['info'=>['info','#2563eb'],'success'=>['check_circle','#059669'],'
         <h1>Notifications</h1>
         <p>Gérez vos alertes et activités récentes</p>
       </div>
-      <div>
+      <div style="display:flex;gap:10px">
+        <a href="../<?= $user['role'] ?>/dashboard.php" class="btn-outline" style="display:flex;align-items:center;gap:8px">
+          <span class="material-icons">arrow_back</span> Retour
+        </a>
         <button class="btn-primary" onclick="KlinikNotifications._markAllRead();setTimeout(()=>location.reload(),500)">
           <span class="material-icons">done_all</span> Tout marquer lu
         </button>

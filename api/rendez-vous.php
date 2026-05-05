@@ -100,6 +100,11 @@ try {
             jsonResponse(false, 'Données invalides.');
         }
 
+        // Si on tente de confirmer, on passe d'abord par "En attente de paiement"
+        if ($statut === 'confirme') {
+            $statut = 'en_attente_paiement';
+        }
+
         // Vérifier que le RDV existe
         $stmt = $pdo->prepare("SELECT * FROM rendez_vous WHERE id = ?");
         $stmt->execute([$id]);
@@ -110,18 +115,69 @@ try {
 
         $pdo->prepare("UPDATE rendez_vous SET statut = ? WHERE id = ?")->execute([$statut, $id]);
 
-        // Notification au patient
-        $patientStmt = $pdo->prepare("SELECT utilisateur_id FROM patients WHERE id = ?");
-        $patientStmt->execute([$rdv['patient_id']]);
-        $patientUserId = $patientStmt->fetchColumn();
-        if ($patientUserId) {
-            $statutLabels = ['confirme' => 'confirmé', 'annule' => 'annulé', 'termine' => 'terminé'];
+        // Infos patient pour notifications/messages
+        $stmtP = $pdo->prepare("
+            SELECT u.id, u.email, u.nom, u.prenom 
+            FROM patients p 
+            JOIN utilisateurs u ON p.utilisateur_id = u.id 
+            WHERE p.id = ?
+        ");
+        $stmtP->execute([$rdv['patient_id']]);
+        $pInfo = $stmtP->fetch();
+
+        if ($pInfo) {
+            $patientUserId = (int)$pInfo['id'];
+            $patientEmail  = $pInfo['email'];
+            $dateRdvFr     = date('d/m/Y à H:i', strtotime($rdv['date_rdv']));
+            
+            $statutLabels = [
+                'en_attente_paiement' => 'en attente de paiement', 
+                'confirme' => 'confirmé', 
+                'annule' => 'annulé', 
+                'termine' => 'terminé'
+            ];
+            
             if (isset($statutLabels[$statut])) {
-                createNotification($pdo, (int)$patientUserId,
-                    'Rendez-vous ' . $statutLabels[$statut],
-                    'Votre rendez-vous du ' . date('d/m/Y', strtotime($rdv['date_rdv'])) . ' a été ' . $statutLabels[$statut] . '.',
-                    $statut === 'confirme' ? 'success' : ($statut === 'annule' ? 'danger' : 'info'),
-                    'mes-rendez-vous.php');
+                $label = $statutLabels[$statut];
+                
+                // 1. Notification Interne
+                createNotification($pdo, $patientUserId,
+                    'Rendez-vous ' . ($statut === 'en_attente_paiement' ? 'validé' : $label),
+                    "Votre rendez-vous du {$dateRdvFr} a été " . ($statut === 'en_attente_paiement' ? 'validé' : $label) . ".",
+                    $statut === 'en_attente_paiement' || $statut === 'confirme' ? 'success' : ($statut === 'annule' ? 'danger' : 'info'),
+                    'mes-rendez-vous.php'
+                );
+
+                // 2. Facturation, Message Interne + Email (uniquement si EN ATTENTE DE PAIEMENT)
+                if ($statut === 'en_attente_paiement') {
+                    // Créer la facture si elle n'existe pas déjà pour ce RDV
+                    $stmtF = $pdo->prepare("SELECT id FROM factures WHERE rendez_vous_id = ?");
+                    $stmtF->execute([$id]);
+                    $factureId = $stmtF->fetchColumn();
+
+                    if (!$factureId) {
+                        $montant = defined('CONSULTATION_FEE') ? CONSULTATION_FEE : 10000;
+                        $stmtIns = $pdo->prepare("INSERT INTO factures (patient_id, rendez_vous_id, montant_total, statut) VALUES (?, ?, ?, 'impayee')");
+                        $stmtIns->execute([$rdv['patient_id'], $id, $montant]);
+                        $factureId = $pdo->lastInsertId();
+                    }
+
+                    $montantFmt = formatMontant(defined('CONSULTATION_FEE') ? CONSULTATION_FEE : 10000);
+                    $sujet   = "Confirmation et Paiement de votre rendez-vous";
+                    $contenu = "Bonjour {$pInfo['prenom']} {$pInfo['nom']},\n\n"
+                             . "Nous avons le plaisir de vous informer que votre rendez-vous prévu pour le {$dateRdvFr} est désormais CONFIRMÉ.\n\n"
+                             . "⚠️ ÉTAPE IMPORTANTE : Pour valider définitivement votre passage, vous devez régler les frais de consultation s'élevant à {$montantFmt}.\n\n"
+                             . "Vous pouvez effectuer ce règlement en toute sécurité via Wave, Orange Money ou MTN Mobile Money directement depuis votre espace patient dans la rubrique 'Mes Factures'.\n\n"
+                             . "Lien vers vos factures : mes-factures.php\n\n"
+                             . "Veuillez vous présenter 15 minutes avant l'heure prévue.\n\n"
+                             . "Cordialement,\nL'administration KLINIK";
+
+                    // Envoi message interne (expéditeur 1 = Admin)
+                    createMessage($pdo, 1, $patientUserId, $sujet, $contenu);
+                    
+                    // Envoi Email
+                    sendEmail($patientEmail, $sujet, $contenu);
+                }
             }
         }
 

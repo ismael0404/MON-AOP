@@ -214,7 +214,11 @@ function voirDetail(f){
       <div style="display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-bottom:4px"><span>Progression du paiement</span><span>${pct}%</span></div>
       <div style="background:#eef0f6;border-radius:20px;height:10px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${colors[f.statut]};border-radius:20px;transition:width .6s"></div></div>
     </div>
-    ${f.statut!=='payee'?`<div style="background:#fef9ec;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-top:14px;font-size:.82rem;color:#92400e"><span class="material-icons" style="font-size:14px;vertical-align:middle">info</span> Pour effectuer un paiement, veuillez vous rendre à la caisse de la clinique.</div>`:''}
+    ${f.statut!=='payee'?`
+    <div style="background:#fef9ec;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-top:14px;font-size:.82rem;color:#92400e;display:flex;flex-direction:column;gap:10px">
+      <div><span class="material-icons" style="font-size:14px;vertical-align:middle">info</span> Vous pouvez régler cette facture en ligne ou à la caisse.</div>
+      <a href="../modules/paiements/index.php" class="btn-primary" style="text-align:center;text-decoration:none;font-size:.78rem;padding:8px">Payer via Mobile Money (Wave, OM...)</a>
+    </div>`:''}
   `;
   openModal('modalDetail');
 }
